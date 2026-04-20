@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Much Ado about Prompting — Companion materials</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #fafafa;
+    color: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .wrap {
+    max-width: 720px;
+    width: 100%;
+    text-align: center;
+  }
+  h1 {
+    font-size: 1.6em;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    font-size: 0.95em;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+  .authors {
+    font-size: 0.85em;
+    color: #888;
+    margin-bottom: 40px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    max-width: 540px;
+    margin: 0 auto;
+  }
+  @media (min-width: 600px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 18px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #1a1a1a;
+    transition: all 0.15s ease;
+    min-height: 140px;
+  }
+  .card:hover {
+    border-color: #1a1a1a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  }
+  .icon {
+    font-size: 1.8em;
+    margin-bottom: 10px;
+  }
+  .label {
+    font-weight: 600;
+    font-size: 0.95em;
+    margin-bottom: 4px;
+  }
+  .desc {
+    font-size: 0.78em;
+    color: #777;
+    text-align: center;
+    line-height: 1.4;
+  }
+  footer {
+    margin-top: 36px;
+    font-size: 0.75em;
+    color: #aaa;
+  }
+  footer a { color: #888; text-decoration: none; }
+  footer a:hover { color: #555; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Much Ado about Prompting</h1>
+  <div class="subtitle">Text Classification in Experimental Economics</div>
+  <div class="authors">Can Çelebi &nbsp;·&nbsp; Stefan P. Penczynski</div>
+
+  <div class="grid">
+    <a class="card" href="presentation.pdf" download>
+      <div class="icon">↓</div>
+      <div class="label">Presentation</div>
+      <div class="desc">Slides (PDF)</div>
+    </a>
+    <a class="card" href="pipeline.html">
+      <div class="icon">↗</div>
+      <div class="label">Pipeline viewer</div>
+      <div class="desc">Codebook&nbsp;→&nbsp;prompt steps</div>
+    </a>
+    <a class="card" href="viewer.html">
+      <div class="icon">↗</div>
+      <div class="label">Prompt assembly viewer</div>
+      <div class="desc">Build prompt variants interactively</div>
+    </a>
+  </div>
+
+  <footer>
+    <a href="https://github.com/can-celebi/prompting" target="_blank">github.com/can-celebi/prompting</a>
+  </footer>
+</div>
+</body>
+</html>

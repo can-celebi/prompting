@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Prompt Assembly Viewer</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; }
+
+.layout { display: flex; height: 100vh; }
+
+/* LEFT PANEL: Controls */
+.controls { width: 320px; min-width: 320px; background: #161b22; border-right: 1px solid #30363d; padding: 20px; overflow-y: auto; }
+.controls h1 { font-size: 16px; color: #58a6ff; margin-bottom: 16px; }
+.controls h2 { font-size: 13px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px; }
+
+.control-group { margin-bottom: 12px; }
+.control-group label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 4px; }
+
+.btn-group { display: flex; gap: 4px; flex-wrap: wrap; }
+.btn-group button {
+    padding: 6px 12px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9;
+    border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s;
+}
+.btn-group button:hover { border-color: #58a6ff; }
+.btn-group button.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.btn-group button.disabled { opacity: 0.3; pointer-events: none; }
+
+.variant-id {
+    margin-top: 16px; padding: 10px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; font-family: monospace; font-size: 14px; color: #f0883e; word-break: break-all;
+}
+
+.stats {
+    margin-top: 12px; padding: 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    font-size: 12px; color: #8b949e; line-height: 1.8;
+}
+.stats span { color: #58a6ff; font-weight: 600; }
+
+.section-legend { margin-top: 16px; }
+.section-legend .legend-item {
+    display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; cursor: pointer;
+}
+.legend-item .dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.legend-item.dim { opacity: 0.4; }
+
+.section-colors {
+    --general-task: #7ee787;
+    --role-persona: #79c0ff;
+    --experiment: #d2a8ff;
+    --theory: #f778ba;
+    --input-format: #ffa657;
+    --classification-task: #ff7b72;
+    --classification-coding: #ffd700;
+    --examples: #a5d6ff;
+    --constraints: #8b949e;
+    --output-format: #56d4dd;
+}
+
+/* RIGHT PANEL: Prompt */
+.prompt-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.prompt-header {
+    padding: 12px 20px; background: #161b22; border-bottom: 1px solid #30363d;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.prompt-header h2 { font-size: 14px; color: #c9d1d9; }
+.prompt-header .task-label {
+    padding: 4px 10px; background: #1f6feb; border-radius: 12px; font-size: 12px; color: #fff;
+}
+
+.prompt-content {
+    flex: 1; overflow-y: auto; padding: 24px 32px; font-size: 14px; line-height: 1.7;
+}
+
+.prompt-content .section { margin-bottom: 4px; border-left: 3px solid transparent; padding-left: 12px; }
+.prompt-content .section:hover { background: rgba(255,255,255,0.03); }
+
+.prompt-content .section[data-section="general-task"] { border-color: var(--general-task); }
+.prompt-content .section[data-section="role-persona"] { border-color: var(--role-persona); }
+.prompt-content .section[data-section="experiment"] { border-color: var(--experiment); }
+.prompt-content .section[data-section="theory"] { border-color: var(--theory); }
+.prompt-content .section[data-section="input-format"] { border-color: var(--input-format); }
+.prompt-content .section[data-section="classification-task"] { border-color: var(--classification-task); }
+.prompt-content .section[data-section="classification-coding"] { border-color: var(--classification-coding); }
+.prompt-content .section[data-section="examples"] { border-color: var(--examples); }
+.prompt-content .section[data-section="constraints"] { border-color: var(--constraints); }
+.prompt-content .section[data-section="output-format"] { border-color: var(--output-format); }
+
+.prompt-content h1 { font-size: 18px; color: #58a6ff; margin: 16px 0 8px; }
+.prompt-content h1:first-child { margin-top: 0; }
+.prompt-content h2 { font-size: 15px; color: #d2a8ff; margin: 12px 0 6px; }
+.prompt-content h3 { font-size: 14px; color: #ffa657; margin: 8px 0 4px; }
+.prompt-content p { margin: 4px 0; }
+.prompt-content ul { margin: 4px 0 4px 20px; }
+.prompt-content li { margin: 2px 0; }
+.prompt-content strong { color: #f0883e; }
+.prompt-content table { border-collapse: collapse; margin: 8px 0; }
+.prompt-content th, .prompt-content td { border: 1px solid #30363d; padding: 4px 8px; font-size: 13px; }
+.prompt-content th { background: #21262d; }
+.prompt-content code { background: #21262d; padding: 1px 4px; border-radius: 3px; font-size: 13px; }
+
+/* Comparison mode */
+.compare-toggle { margin-top: 16px; }
+.compare-toggle button {
+    width: 100%; padding: 8px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9;
+    border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.compare-toggle button:hover { border-color: #58a6ff; }
+.compare-toggle button.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+
+.prompt-panel.compare { display: flex; flex-direction: row; }
+.prompt-panel.compare .prompt-col {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+.prompt-panel.compare .prompt-col + .prompt-col { border-left: 2px solid #f0883e; }
+</style>
+</head>
+<body class="section-colors">
+<div class="layout">
+    <!-- LEFT: Controls -->
+    <div class="controls">
+        <h1>Prompt Assembly Viewer</h1>
+
+        <div class="control-group">
+            <label>Task</label>
+            <div class="btn-group" id="task-btns">
+                <button data-val="p1" class="active">P_I</button>
+                <button data-val="p2">P_II</button>
+                <button data-val="l1">L_I</button>
+                <button data-val="l2">L_II</button>
+            </div>
+        </div>
+
+        <h2>Content Ablation</h2>
+
+        <div class="control-group">
+            <label>Experiment Context</label>
+            <div class="btn-group" id="exp-btns">
+                <button data-val="V" class="active">V</button>
+                <button data-val="C1">C1</button>
+                <button data-val="C2">C2</button>
+                <button data-val="C3">C3</button>
+                <button data-val="N">N</button>
+            </div>
+        </div>
+
+        <div class="control-group" id="theory-group">
+            <label>Theory (L tasks only)</label>
+            <div class="btn-group" id="theory-btns">
+                <button data-val="V" class="active">V</button>
+                <button data-val="C1">C1</button>
+                <button data-val="C2">C2</button>
+                <button data-val="N">N</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Classification Task</label>
+            <div class="btn-group" id="cls-btns">
+                <button data-val="V" class="active">V</button>
+                <button data-val="S">S</button>
+            </div>
+        </div>
+
+        <h2>Experiment B+</h2>
+
+        <div class="control-group">
+            <label>Format</label>
+            <div class="btn-group" id="fmt-btns">
+                <button data-val="ml" class="active">md+list</button>
+                <button data-val="tl">title+list</button>
+                <button data-val="mp">title+para</button>
+                <button data-val="fl">flat list</button>
+                <button data-val="pt">plain txt</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Framing</label>
+            <div class="btn-group" id="frm-btns">
+                <button data-val="full" class="active">Full</button>
+                <button data-val="nogt">No GT</button>
+                <button data-val="norp">No RP</button>
+                <button data-val="none">None</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>N-shot Examples</label>
+            <div class="btn-group" id="shot-btns">
+                <button data-val="0" class="active">0-shot</button>
+                <button data-val="n">N-shot</button>
+            </div>
+        </div>
+
+        <div class="variant-id" id="variant-id">exp_V.cls_V</div>
+
+        <div class="stats" id="stats">
+            Characters: <span>0</span><br>
+            Words: <span>0</span><br>
+            Est. tokens: <span>~0</span><br>
+            Sections: <span>0</span>
+        </div>
+
+        <div class="section-legend" id="legend"></div>
+
+        <div class="compare-toggle">
+            <button id="compare-btn" onclick="toggleCompare()">Compare Mode</button>
+        </div>
+    </div>
+
+    <!-- RIGHT: Prompt Display -->
+    <div class="prompt-panel" id="prompt-panel">
+        <div class="prompt-header">
+            <h2 id="prompt-title">P_I — Trust Game Promise Classification</h2>
+            <div class="task-label" id="prompt-task-label">p1_promise</div>
+        </div>
+        <div class="prompt-content" id="prompt-content"></div>
+    </div>
+</div>
+
+<script>
+// =========================================================================
+// EMBEDDED DATA
+// =========================================================================
+
+const SECTIONS = {
+    general_task_p1: "Classify whether a player's message constitutes a promise or statement of intent in a trust game.",
+    general_task_p2: "Classify whether each player's messages constitute a promise or statement of intent in a public goods game.",
+    general_task_l1: "Classify a player's level of strategic thinking (0-3) based on their message in a voting game experiment.",
+    general_task_l2: "Classify a player's level of strategic thinking (0-5) based on their message in a coordination game experiment.",
+    role_persona_p1: "Act as a behavioral economist with expertise in text classification and promise detection in trust game.",
+    role_persona_p2: "Act as a behavioral economist with expertise in text classification and promise detection in public goods games.",
+    role_persona_l1: "Act as a behavioral economist with expertise in text classification, bounded rationality, and level-k reasoning.",
+    role_persona_l2: "Act as a behavioral economist with expertise in text classification, bounded rationality, level-k reasoning, and salience in coordination games.",
+    classification_coding_p1: "- Code promise or statement of intent as \"1\"\n- Code empty talk as \"0\"",
+    classification_coding_p2: "- Code promise or statement of intent as \"1\"\n- Code empty talk as \"0\"\n- Code player did not speak as \"na\"",
+    classification_coding_l1: "- Code level 0 as \"0\"\n- Code level 1 as \"1\"\n- Code level 2 as \"2\"\n- Code level 3 as \"3\"",
+    classification_coding_l2: "- Code level 0 as \"0\"\n- Code level 1 as \"1\"\n- Code level 2 as \"2\"\n- Code level 3 as \"3\"\n- Code level 4 as \"4\"\n- Code level 5 as \"5\"",
+    constraints_p1: "- Provide your response using the JSON format specified in the Output Format section below\n- Do not provide explanations",
+    constraints_p2: "- Provide your response using the JSON format specified in the Output Format section below\n- Do not provide explanations",
+    constraints_l1: "- Provide your response using the JSON format specified in the Output Format section below\n- Do not provide explanations",
+    constraints_l2: "- Provide your response using the JSON format specified in the Output Format section below\n- Do not provide explanations",
+    output_format_p1: "Respond with a JSON object in the following format:\n{\"classification\": \"<value>\"}\nwhere <value> is \"0\" or \"1\"",
+    output_format_p2: "Respond with a JSON object in the following format:\n{\"p1\": \"<value>\", \"p2\": \"<value>\", \"p3\": \"<value>\"}\nwhere each <value> is \"0\", \"1\", or \"na\"",
+    output_format_l1: "Respond with a JSON object in the following format:\n{\"classification\": \"<value>\"}\nwhere <value> is \"0\", \"1\", \"2\", or \"3\"",
+    output_format_l2: "Respond with a JSON object in the following format:\n{\"classification\": \"<value>\"}\nwhere <value> is \"0\", \"1\", \"2\", \"3\", \"4\", or \"5\"",
+    input_format_l2: "You will receive input in the following format:\n\nTeam: [1 or 2]\nPayoffs if both teams coordinate on the same action (0 if mismatch):\n  [Action] \u2192 Team 1 receives [X], Team 2 receives [Y]\n  [Action] \u2192 Team 1 receives [X], Team 2 receives [Y]\nDecision: [the action this team chose]\nMessage: [the player's message to their teammate]",
+};
+
+// Examples (for n-shot mode)
+const EXAMPLES = {
+    p1: "<!-- No examples in the P_I codebook. -->",
+    p2: `## Example 1
+### Message
+P1: all 200 then?
+P2: yes
+### Classification
+{"p1":"0","p2":"1","p3":"na"}
+Note: The "yes" of P2 is a promise. P1's question does not commit to action. P3 did not speak.
+
+## Example 2
+### Message
+P1: Are we all just going to with max?
+P2: agree
+### Classification
+{"p1":"0","p2":"1","p3":"na"}
+Note: The "agree" of P2 is a promise. P1's question does not commit to action. P3 did not speak.
+
+## Example 3
+### Message
+P1: I think it's best if we invest 200
+### Classification
+{"p1":"0","p2":"na","p3":"na"}
+Note: Suggestions and opinions are not promises. P2 and P3 did not speak.
+
+## Example 4
+### Message
+P1: let's do 200
+### Classification
+{"p1":"0","p2":"na","p3":"na"}
+Note: "Let's do" is a suggestion, not a commitment to action. P2 and P3 did not speak.
+
+## Example 5
+### Message
+P1: I have been doing 200 in the last round
+### Classification
+{"p1":"0","p2":"na","p3":"na"}
+Note: Describing past behavior is not a promise. P2 and P3 did not speak.
+
+## Example 6
+### Message
+P1: 100 sounds good
+### Classification
+{"p1":"0","p2":"na","p3":"na"}
+Note: Expressing approval is not a promise. P2 and P3 did not speak.
+
+## Example 7
+### Message
+P1: 200?
+P2: let's do it
+### Classification
+{"p1":"0","p2":"1","p3":"na"}
+Note: "Let's do it" in response to a specific proposal is a promise. P1's question is not a commitment.
+
+## Example 8
+### Message
+P1: 150. player 2 are you in agreement?
+P2: hi sounds good
+### Classification
+{"p1":"0","p2":"1","p3":"na"}
+Note: "Sounds good" in response to a specific proposal is a promise.
+
+## Example 9
+### Message
+P1: happy with 200 if we all agree
+P2: cool let's do it
+P3: Yep.
+### Classification
+{"p1":"1","p2":"1","p3":"1"}
+Note: P1 makes a conditional promise. P2 and P3 agree, making promises.
+
+## Example 10
+### Message
+P1: 200 each?
+P2: agree
+P3: agree
+### Classification
+{"p1":"0","p2":"1","p3":"1"}
+Note: "200 each?" does not make it clear that P1 will do 200 if the others do. P2 and P3 make promises by agreeing.
+
+## Example 11
+### Message
+P1: 200
+P2: agreed
+P3: I suggest 100
+P2: I'm happy with either
+### Classification
+{"p1":"1","p2":"0","p3":"0"}
+Note: P1 states "200" as a commitment. P2 initially agreed but then changed mind with "I'm happy with either", so no promise. P3 only suggests.`,
+    l1: `## Example 1
+### Message
+My favorite color is blue, So I chose blue.
+### Classification
+{"classification":"0"}
+
+## Example 2
+### Message
+did not exactly understand this experiment seems to be just depending on luck
+### Classification
+{"classification":"0"}
+
+## Example 3
+### Message
+Just a guess
+### Classification
+{"classification":"0"}
+
+## Example 4
+### Message
+The probability that the red ball we observe is out of the red urn is twice the probability that it is out of the blue urn
+### Classification
+{"classification":"1"}
+
+## Example 5
+### Message
+Our signal is blue. Let's play blue.
+### Classification
+{"classification":"1"}
+
+## Example 6
+### Message
+I have a blue ball. If we have the blue urn, someone else also has a blue ball and as a result our group will chose blue regardless of my vote. If we have the red urn, I am the only one with the blue ball and if I vote blue, we will chose the wrong urn. So I should vote for red.
+### Classification
+{"classification":"2"}
+
+## Example 7
+### Message
+In case two teams choose red and one chooses blue, blue will be taken. That means that choosing red has a higher chance of being a good decision.
+### Classification
+{"classification":"2"}
+
+## Example 8
+### Message
+I guess this is more about luck because there is no way to know it for sure. I would say blue just because of the higher probability. Also I like turtles Also it is likely that one other team will pick blue and then it is that color anyways
+### Classification
+{"classification":"2"}
+
+## Example 9
+### Message
+There is no point for us to take blue I think the chances for us to get the right color are higher if we stick with red
+### Classification
+{"classification":"2"}
+
+## Example 10
+### Message
+I suggest red because we don't hurt anyone with this decision If the others go for blue because they have a blue ball, the committee's decision will be blue regardless of our decision
+### Classification
+{"classification":"2"}
+
+## Example 11
+### Message
+we could be the deciding vote for blue if the other two choose red. Choosing blue isn't as helpful as choosing red, because: only one blue ball can overturn our whole decision but only a unanimous decision for red can help us the same way
+### Classification
+{"classification":"2"}
+
+## Example 12
+### Message
+If everyone else assumes others play their own signal then they will always play red. Since I have the blue ball, it is more likely that we have the blue urn so I will vote blue
+### Classification
+{"classification":"3"}
+
+## Example 13
+### Message
+I think it's all the same rule. Since I have the blue ball, it is more likely that we have the blue urn so I will vote blue
+### Classification
+{"classification":"3"}`,
+    l2: `## Example 1
+### Message
+Team: 1
+Payoffs if both teams coordinate on the same action (0 if mismatch):
+  X \u2192 Team 1 receives 5, Team 2 receives 5
+  Y \u2192 Team 1 receives 5, Team 2 receives 5
+Decision: X
+Message: Well, it's a pure guess.
+### Classification
+{"classification":"0"}
+
+## Example 2
+### Message
+Team: 1
+Payoffs if both teams coordinate on the same action (0 if mismatch):
+  X \u2192 Team 1 receives 5, Team 2 receives 5
+  Y \u2192 Team 1 receives 5, Team 2 receives 5
+Decision: X
+Message: There are no arguments. Simply choose any.
+### Classification
+{"classification":"0"}
+
+## Example 3
+### Message
+Team: 1
+Payoffs if both teams coordinate on the same action (0 if mismatch):
+  X \u2192 Team 1 receives 5, Team 2 receives 6
+  Y \u2192 Team 1 receives 6, Team 2 receives 5
+Decision: X
+Message: They are probably picking X, so we should do the same.
+### Classification
+{"classification":"1"}
+
+## Example 4
+### Message
+Team: 1
+Payoffs if both teams coordinate on the same action (0 if mismatch):
+  $ (left, gray) \u2192 Team 1 receives 6, Team 2 receives 6
+  # (right, gray) \u2192 Team 1 receives 6, Team 2 receives 6
+  \u00a7 (bottom, white) \u2192 Team 1 receives 5, Team 2 receives 5
+Decision: \u00a7
+Message: The other team would naturally go for the visually distinctive bottom slice.
+### Classification
+{"classification":"1"}
+
+## Example 5
+### Message
+Team: 1
+Payoffs if both teams coordinate on the same action (0 if mismatch):
+  $ (left, gray) \u2192 Team 1 receives 5, Team 2 receives 6
+  # (right, gray) \u2192 Team 1 receives 6, Team 2 receives 5
+  \u00a7 (bottom, white) \u2192 Team 1 receives 6, Team 2 receives 5
+Decision: #
+Message: The other team may think we are most attracted to the alternative # with the highest payoff. In order to coordinate our behavior, we should also choose the # slice.
+### Classification
+{"classification":"2"}`
+};
+
+// Pipeline content: PIPELINE[task][type_level] = text
+const PIPELINE = {
+    p1: {
+        exp_v: "- In each pair, one person has the role of A, and the other the role of B. The amount of money earned depends on the decisions made in the pair.\n- Each person A indicates whether he or she wishes to choose IN or OUT. If A chooses OUT, A and B each receive $5.\n- Each person B indicates whether he or she wishes to choose ROLL or DON\u2019T ROLL (a die).\n- B does not know whether A has chosen IN or OUT; however, since B\u2019s decision only makes a difference when A has chosen IN, B presumes that A has chosen IN.\n- If A has chosen IN and B chooses DON\u2019T ROLL, then B receives $14 and A receives $0.\n- If B chooses ROLL, B receives $10 and rolls a six-sided die to determine A\u2019s payoff. If the die comes up 1, A receives $0; if the die comes up 2-6, A receives $12.\n- Prior to the decision by A and B concerning IN or OUT, B has an option to send a message to A.",
+        exp_c1: "- Each person A indicates whether he or she wishes to choose IN or OUT. If A chooses OUT, A and B each receive $5.\n- Each person B indicates whether he or she wishes to choose ROLL or DON\u2019T ROLL (a die).\n- If A has chosen IN and B chooses DON\u2019T ROLL, then B receives $14 and A receives $0.\n- If B chooses ROLL, B receives $10 and rolls a six-sided die to determine A\u2019s payoff. If the die comes up 1, A receives $0; if the die comes up 2-6, A receives $12.\n- Prior to the decision by A and B concerning IN or OUT, B has an option to send a message to A.",
+        exp_c3: "- A chooses IN or OUT ($5 each if OUT). B chooses ROLL or DON\u2019T ROLL a die.\n- DON\u2019T ROLL: B gets $14, A gets $0. ROLL: B gets $10, die 1 = A gets $0, die 2-6 = A gets $12.\n- B can send a message to A before A\u2019s decision.",
+        cls_v: "Classify the message as **promise** (1) if at least one of the following conditions is probably satisfied:\n\n- The writer, subject B, indicates in the message he/she would do something favorable to subject A or refrain from doing something that hurts subject A.\n- The message gives subject A reasons to believe or expect that subject B would do something favorable to subject A or refrain from doing something that hurts subject A.\n\nClassify as **empty talk** (0) if the message does not probably satisfy any of the above conditions.\n\n**Important**: Capture what had been said rather than why it was said or what effect it had.",
+        cls_s: "- Classify the message as promise (1) or empty talk (0).",
+    },
+    p2: {
+        exp_v: "- In this experiment, three participants are randomly matched for a group investment task.\n- The experiment consists of multiple rounds. Each round, participants are matched with a different group.\n- Each participant starts with 200 pence (\u00a32).\n- Participants can invest between 0-200 in a group project.\n- Participants can keep any money that they don\u2019t invest. The total amount invested by all 3 group members is doubled.\n- Then it is shared out equally.\n- So, for every 100 pence invested by anyone, each person in the group gets 66 pence back.\n- Before choosing how much to invest, participants can chat with their group members.",
+        exp_c1: "- In this experiment, three participants are randomly matched for a group investment task over multiple rounds.\n- Each participant starts with 200 pence and can invest between 0-200 in a group project.\n- The total amount invested by all 3 group members is doubled and shared out equally.\n- Before choosing how much to invest, participants can chat with their group members.",
+        exp_c3: "- Three participants each start with 200 pence and can invest in a group project over multiple rounds.\n- The total investment is doubled and shared equally.\n- Participants can chat before investing.",
+        cls_v: "Code a participant\u2019s message (including his/her entire text in the conversation) as **promise** (1) if at least one of the following conditions is satisfied:\n\n- The writer indicates in the message he/she would take a certain course of action.\n- The message gives the other participants reasons to believe or expect that the writer of the message would take a certain course of action.\n\nCode a message as **empty talk** (0) if the message does not satisfy any of the above conditions.\n\n**Important**: Capture what had been said rather than why it was said or what effect it had.\n\nProvide one classification per player.",
+        cls_s: "- Classify the message as promise (1) or empty talk (0).",
+    },
+    l1: {
+        exp_v: "- A single experimental session consists of 4 parts and every part consists of 2 periods. In every part, every subject is randomly paired with another one to form a team.\n- Depending on the treatment, every team then is randomly matched with 2 or 5 other teams to form a voting group.\n- Every group will be assigned to a blue or red urn and every team in the group will draw a ball from their assigned urn. The blue urn contains twice more blue balls than red balls. The red urn contains twice more red balls than blue balls.\n- One treatment variable is the group size: in parts 1 and 3 the groups consist of 3 teams, in parts 2 and 4 they consist of 6 teams, and accordingly the urns contain 3 or 6 balls.\n- The other treatment variable is the draw mechanism: depending on the session, the balls will be drawn from the urn with or without replacement.\n- The goal of every group is to correctly state the color of the urn they are assigned to. Every team submits a vote (either red or blue) and if every team in the group votes for red then the group\u2019s decision will be red, otherwise it will be blue.\n- Every subject in a team observes the team\u2019s drawn ball and then makes a decision on the color of the urn. Then, they send a message to their team member explaining why they should vote for the suggested color.\n- The team members receive the suggestions and the message of their teammates, and make their final decision on their own. Either of the team member\u2019s decision is equally likely to be chosen as the team\u2019s final voting decision.",
+        exp_c1: "- Every subject is randomly paired with another one to form a team. Every team is randomly matched with other teams to form a voting group.\n- Every group will be assigned to a blue or red urn and every team in the group will draw a ball from their assigned urn. The blue urn contains twice more blue balls than red balls. The red urn contains twice more red balls than blue balls.\n- The groups consist of either 3 or 6 teams. The balls will be drawn from the urn with or without replacement.\n- The goal of every group is to correctly state the color of the urn they are assigned to. Every team submits a vote (either red or blue) and if every team in the group votes for red then the group\u2019s decision will be red, otherwise it will be blue.\n- Every subject in a team observes the team\u2019s drawn ball and sends a message to their team member explaining why they should vote for the suggested color.",
+        exp_c2: "- Subjects form teams of two. Teams are grouped into voting groups of 3 or 6 teams.\n- Every group is assigned to a blue or red urn. The blue urn contains twice more blue balls than red balls, and vice versa. Every team draws a ball, with or without replacement.\n- The goal is to correctly state the color of the urn. Every team submits a vote (red or blue). If every team votes red, the group decision is red; otherwise blue.\n- Each subject sends a message to their team member explaining their suggested vote.",
+        theory_v: "- The level-k model of bounded rationality assumes that players only think through a certain number (k) of best responses. The model has four main ingredients:\n- Population distribution: This distribution reflects the proportion of types with a certain level k \u2208 N0 = {0, 1, 2, 3, 4, 5, ...}.\n- Level-0 distribution: By definition, a level-0 player does not best respond. Hence, his actions are random to the game and distributed randomly over the action space. In our case, the action space is A = {Red, Blue} where Red and Blue represent the voting choice of the player. Note that, our model does not incorporate salience by assuming higher probabilities in the level-0 distributions for the action that is salient due the signal received (i.e. if a blue ball is received and the player is playing random, the player, due to the availability of the blue signal, will chose to vote blue)\n- Level-0 belief: In the model, the best responses of players with level k > 0 are anchored in what they believe the level-0 players play. Their level-0 belief might not be consistent with the level-0 distribution. For best responding, all that matters is the expected payoff from choosing an action from the action space A = {Red, Blue}.\n- Population belief: Players do not expect other players to be of the same or a higher level of reasoning. For a level-k player, the population belief is therefore defined on the set of levels strictly below k. It follows that level-0 players have no defined belief, level-1 players have a trivial belief with full probability mass on {0} (i.e. the belief that everyone else is level-0), level-2 players have a well defined belief on {{0}, {1}}. From level 3 higher order beliefs are relevant as level-3 players have to form a belief about level-2\u2019s beliefs.\n- We consider a game with n players (jurors in the voting context). The game starts by nature choosing a state of the world S in \u03a9 = {Red, Blue} with probability r and 1 \u2212 r respectively. The players do not observe the state, but each acquires a private signal s about the realized state of the world. If the true state is Blue, then each player observes an independent (or geometrically dependent) Bernoulli random variable (the private signal) which is blue with probability p and red with probability 1 \u2212 p (and conversely for when the true state is Red).\n- After observing their private signals, players chose an action a (a vote) from the action space A = {Red, Blue}. Given the votes of the players, 1 \u2264 k* \u2264 n represents the number of votes needed for Red to be chosen for the aggregate decision. If k* many or more players vote for Red, then the group decision is Red otherwise it is Blue.\n- The utility of jury j when she takes action a with certainty given her signal is s and given the state is S is defined as uj(\u03c3j(s) = a, S). Given any signal s, the utility u : A x \u03a9 \u2192 R for jury j is further defined by uj(\u03c3j(s) = blue, Blue) = uj(\u03c3j(s) = red, Red) = 0, uj(\u03c3j(s) = red, Blue) = \u2212q and uj(\u03c3j(s) = blue, Red) = \u2212(1 \u2212 q), where 0 < q < 1.\n- In all our experiments, we used k* = n (i.e., the unanimity voting rule), r = 0.5, q = 0.5 and p = 2/3. Treatments vary in the number of players n between 3 and 6.\n- Under the experimental set-up, the model provides the prototypical behavior of the subjects given their level as follows:\n- n = 3 or n = 6 with replacement: blue observed \u2192 level-1 votes blue, level-2 votes red. Red observed \u2192 both vote red.\n- n = 3 without replacement: blue observed \u2192 level-1 votes blue, level-2 votes red. Red observed \u2192 level-1 votes red, level-2 votes red or blue. (Voting red is strictly preferred under assumption that level-2 assumes some small probability of level-0 players)\n- n = 6 without replacement: blue observed \u2192 level-1 votes blue, level-2 votes red or blue. (Voting blue is strictly preferred under assumption of some level-0 players, not level-1) Red observed \u2192 level-1 votes red, level-2 votes red or blue. (Voting red is strictly preferred under assumption of some level-0 players)",
+        theory_c1: "- The level-k model of bounded rationality assumes that players only think through a certain number (k) of best responses. The model has four main ingredients:\n- Population distribution: This distribution reflects the proportion of types with a certain level k.\n- Level-0 distribution: By definition, a level-0 player does not best respond. Hence, his actions are random to the game and distributed randomly over the action space. In our case, the action space is A = {Red, Blue}. Note that, our model does not incorporate salience by assuming higher probabilities in the level-0 distributions for the action that is salient due the signal received (i.e. if a blue ball is received and the player is playing random, the player, due to the availability of the blue signal, will chose to vote blue)\n- Level-0 belief: In the model, the best responses of players with level k > 0 are anchored in what they believe the level-0 players play. Their level-0 belief might not be consistent with the level-0 distribution.\n- Population belief: Players do not expect other players to be of the same or a higher level of reasoning. For a level-k player, the population belief is therefore defined on the set of levels strictly below k. It follows that level-0 players have no defined belief, level-1 players have a trivial belief with full probability mass on {0}, level-2 players have a well defined belief on {{0}, {1}}. From level 3 higher order beliefs are relevant as level-3 players have to form a belief about level-2\u2019s beliefs.\n- In all our experiments, we used k* = n (i.e., the unanimity voting rule), r = 0.5, q = 0.5 and p = 2/3. Treatments vary in the number of players n between 3 and 6.\n- n = 3 or n = 6 with replacement: blue observed \u2192 level-1 votes blue, level-2 votes red. Red observed \u2192 both vote red.\n- n = 3 without replacement: blue observed \u2192 level-1 votes blue, level-2 votes red. Red observed \u2192 level-1 votes red, level-2 votes red or blue.\n- n = 6 without replacement: blue observed \u2192 level-1 votes blue, level-2 votes red or blue. Red observed \u2192 level-1 votes red, level-2 votes red or blue.",
+        theory_c2: "- The level-k model assumes players think through k best responses. Four ingredients:\n- Population distribution reflects the proportion of types with a certain level k.\n- Level-0 distribution: a level-0 player does not best respond; actions are random over A = {Red, Blue}. The model does not incorporate salience in the level-0 distribution (a blue signal may bias random play toward blue).\n- Level-0 belief: players with k > 0 anchor best responses on what they believe level-0 players play. Their level-0 belief might not be consistent with the level-0 distribution.\n- Population belief: players do not expect others to be of the same or higher level. Level-0 has no defined belief, level-1 believes all are level-0, level-2 has beliefs over {0, 1}. Level-3 must form beliefs about level-2\u2019s beliefs.\n- Optimal strategies: with replacement, level-1 follows signal, level-2 always votes red. Without replacement, level-2 may vote red or blue depending on group size and level-0 assumptions.",
+        cls_v: "Classify the participant\u2019s level of strategic reasoning using the guidance below. Subjects do not necessarily describe every step of their thinking; therefore, it may not always be obvious to decide which level they are. In many comments, any indications of a level of thinking may be partial or implicit, you should then indicate the most likely level of reasoning of the player.\n\n## Level 0\n- Chooses randomly, without justification or through some justification completely unrelated to the task.\n- Might not have understood the game or shows no interest in the game or in thinking about it.\n\n**Note**: Comments such as \u201cIt is obviously blue\u201d or \u201cPlay red, trust me!\u201d should not be considered as level-0 thinking as these comments to some extent signal some level of understanding/interest of the task. Such comments are likely to be level-1 comments.\n\n## Level 1\n- Always follows his own signal.\n- The subject may argue in favor of playing his own signal through some probability argument.\n\n**Note**: The key idea in defining a level-1 player is to identify some thinking process that signals the subject\u2019s interest/understanding of the task and the private signal. Furthermore, it is important that the subject does not offer any argument acknowledging the potential votes of the other teams and how to vote accordingly (i.e. adjusting the strategy given what others are expected to do).\n\n## Level 2\n- Assume that all other players almost always follow their signal (i.e. she assumes almost all the other players are level-1 while an epsilon portion of them are level-0).\n- Player does offer an argument acknowledging the potential votes of the other teams and how to vote accordingly (i.e. a best response given others are most likely playing their signal).\n- If you identify any comment that indicates that the subject assumes (or considers the case) where the other players in her group play their signal, you should consider the possibility that the subject is a level-2 player.\n\n**Note**: In order to discern the two types, you should look for more than any trivial arguments such as the ones given under level-1. There may be cases where the message starts as a level-1 argument and then as the subjects elaborates on her reasoning, she starts considering the strategy of the other teams and justify her decision accordingly. In such cases, this message should be considered as level-2. The acknowledgment of other teams\u2019 voting strategy may not always be obvious or may be worded differently such as \u201churting the other\u2019s decision\u201d or \u201cnot being helpful\u201d.\n\n## Level 3\n- Assumes that almost all other subjects are level-2 players (partially degenerate beliefs).\n- The reasoning in a level-3 player message will have similarities with a level-1 player message but it will have additional arguments indicating that she assumes others are level-2 players.\n\n**Note**: Level-3 players are likely to follow their signal like a level-1 player yet they will argue to do so through a much more intricate argument (unlike a level-1 player merely stating probabilities to argue her action). Level-3 players are rare.\n\nIf reasoning is partial or implicit, classify the most likely level.",
+        cls_s: "- Classify the player\u2019s level of strategic thinking as 0, 1, 2 or 3.",
+    },
+    l2: {
+        exp_v: "- Subjects are randomly assigned into teams of two players. For a given strategic situation, each player makes suggestions for the team action at two points in time.\n- First, the so-called \u201csuggested decision\u201d and a justifying written message are exchanged between the team partners simultaneously.\n- After this, the \u201cfinal decision\u201d is taken individually by each team player. The computer chooses randomly one of the two final decisions to obtain the \u201cteam\u2019s action.\u201d\n- All teams play a series of eight coordination games.\n- Coordination games are characterised by situations in which all parties can realize mutual gains, but only by making mutually consistent decisions.\n- Each team is randomly matched with another team. If a matched pair of teams both decide on identical team actions, they coordinate their behavior successfully and are rewarded with a payoff.\n- However, if both teams choose different team actions, they fail to coordinate their behavior and do not receive any payoff. Thus both teams are motivated solely to coordinate their strategies in order to obtain an outcome that is best for them.\n- The following example illustrates a random coordination game in which each team decides on one strategy X, Y or Z simultaneously. Only if both teams make mutually consistent decisions they receive a payoff of 2 units each.\n- Payoff table (first number is Team 1\u2019s payoff, second is Team 2\u2019s):\n\n| Team 1 \\ Team 2 | X | Y | Z |\n|---|---|---|---|\n| X | (2,2) | (0,0) | (0,0) |\n| Y | (0,0) | (2,2) | (0,0) |\n| Z | (0,0) | (0,0) | (2,2) |\n\n- The payoff is represented through an experimental currency unit (\u201cTaler\u201d). One Taler is worth 0,40 Euro.\n- In a symmetric coordination game each team is rewarded the same payoff if they coordinate their behavior successfully.\n- In asymmetric coordination games players usually disagree on which action they prefer to coordinate. There may be one outcome where one team disproportionately benefits in comparison to the other team.\n- All subjects face a series of eight coordination games composed of four \u201cX-Y Games\u201d and four \u201cPie Games\u201d.\n\n### X-Y Coordination Games\n- \u201cX-Y Games\u201d are characterised by a binary choice option \u201cX\u201d or \u201cY\u201d. The assignment of payoffs for successful coordination is indicated in brackets. Example:\n  + X [6 Taler for Team 1 and 5 Taler for Team 2]\n  + Y [5 Taler for Team 1 and 6 Taler for Team 2]\n- If a matched pair of teams both decide on the identical team action \u201cX\u201d, team one receives 6 Taler and team two receives 5 Taler.\n- If both teams chose \u201cY\u201d, the assignment of payoffs would be reversed. If both teams chose decisions with different labels \u201cX\u201d and \u201cY\u201d, neither team receives any payoff. The payoff differences vary within the four \u201cX-Y treatments\u201d.\n\n### Pie Coordination Games\n- \u201cPie Games\u201d are characterised by a visual representation of different choice options displayed as a pie chart divided into three slices. Each team simultaneously selects one of the three \u201cpie slices\u201d.\n- The three slices are labeled with abstract decision labels: $ (top-left, shaded gray), # (top-right, shaded gray), and \u00a7 (bottom, highlighted in white). The bottom slice \u00a7 is visually distinctive from the two upper slices.\n- The assignment of payoffs for successful coordination is indicated within the three slices. The first number represents the quantity of Taler for team one, the second number the quantity of Taler for team two. Example:\n\n| Decision | Payoffs (Team 1, Team 2) |\n|----------|--------------------------|\n| $ (left) | 6, 7 |\n| # (right)| 7, 6 |\n| \u00a7 (bottom)| 7, 5 |\n\n- If both teams chose decisions with different labels \u00a7, $ or #, neither team receives any payoff. The payoff differences alternate within the four \u201cPie treatments\u201d.\n\n### Salience\n- Note that the \u201cX-Y Game\u201d and the \u201cPie Game\u201d might both contain one alternative that is visually distinctive from another alternative. For instance, the unshaded bottom slice is visually distinctive from the two upper slices ($ and #) that are shaded in a light grey color. We refer to a visually distinctive alternative as label-salient.\n- Moreover an alternative might be payoff-salient in a way that it is distinctive with respect to its payoff structure. The concept of label and payoff salience is important for the classification process.",
+        exp_c1: "- Subjects are assigned into teams of two players. Each player makes a \u201csuggested decision\u201d and a justifying written message, exchanged simultaneously with their team partner. After this, each player makes a \u201cfinal decision\u201d individually. The computer chooses randomly one of the two final decisions as the \u201cteam\u2019s action.\u201d\n- All teams play a series of eight coordination games. Each team is randomly matched with another team. If both teams decide on identical team actions, they coordinate successfully and are rewarded with a payoff in Taler (1 Taler = 0.40 Euro). If they choose different actions, neither team receives any payoff.\n- In symmetric coordination games both teams receive the same payoff. In asymmetric games one team may disproportionately benefit from a particular coordinated outcome.\n### X-Y Coordination Games\n- \u201cX-Y Games\u201d are characterised by a binary choice option \u201cX\u201d or \u201cY\u201d. The assignment of payoffs for successful coordination varies across four X-Y treatments. Example:\n  + X [6 Taler for Team 1 and 5 Taler for Team 2]\n  + Y [5 Taler for Team 1 and 6 Taler for Team 2]\n- If both teams chose \u201cY\u201d, the assignment of payoffs would be reversed. If both teams chose decisions with different labels \u201cX\u201d and \u201cY\u201d, neither team receives any payoff.\n### Pie Coordination Games\n- \u201cPie Games\u201d are characterised by a visual representation displayed as a pie chart divided into three slices. Each team simultaneously selects one of the three \u201cpie slices\u201d.\n- The three slices are labeled: $ (top-left, shaded gray), # (top-right, shaded gray), and \u00a7 (bottom, highlighted in white). The bottom slice \u00a7 is visually distinctive from the two upper slices.\n- The payoffs for successful coordination vary across four Pie treatments. If both teams chose decisions with different labels \u00a7, $ or #, neither team receives any payoff.\n### Salience\n- Some alternatives are visually distinctive from others. We refer to a visually distinctive alternative as label-salient. For instance, the bottom slice \u00a7 is label-salient.\n- An alternative might also be payoff-salient in a way that it is distinctive with respect to its payoff structure. The concept of label and payoff salience is important for the classification process.",
+        exp_c2: "- Subjects are assigned into teams of two players. Each player makes a \u201csuggested decision\u201d and a justifying written message, exchanged simultaneously with their team partner. After this, each player makes a \u201cfinal decision\u201d individually. The computer chooses randomly one of the two final decisions as the \u201cteam\u2019s action.\u201d\n- All teams play a series of eight coordination games. Each team is randomly matched with another team. If both teams decide on identical team actions, they coordinate successfully and are rewarded with a payoff. If they choose different actions, neither team receives any payoff.\n- The payoff is represented in \u201cTaler\u201d (1 Taler = 0.40 Euro). In symmetric coordination games both teams receive the same payoff. In asymmetric games players may disagree on which action they prefer to coordinate.\n- \u201cX-Y Games\u201d: binary choice \u201cX\u201d or \u201cY\u201d. Example: X [6 Taler for Team 1, 5 for Team 2], Y [5 for Team 1, 6 for Team 2]. Different labels mean no payoff. Payoff differences vary across four X-Y treatments.\n- \u201cPie Games\u201d: three \u201cpie slices\u201d labeled \u00a7, $ or #. Teams simultaneously select one slice. Different labels mean no payoff. Payoff differences alternate across four Pie treatments.\n- Some alternatives are visually distinctive (label-salient). Some are distinctive with respect to payoff structure (payoff-salient). The concept of label and payoff salience is important for the classification process.",
+        theory_v: "- The level-k model of bounded rationality assumes that players only think through a certain number (k) of best responses. The model has four main ingredients:\n- Population distribution: This distribution reflects the proportion of types with a certain level k.\n- Level-0 distribution: By definition, a level-0 player does not best respond. Hence, his actions are random to the game and distributed randomly over the action space. In our case, the action space is A = {{X}, {Y}} or A = {{\u00a7}, {$}, {#}}. The model incorporates salience by assuming higher probabilities in the level-0 distribution for actions that are visually distinctive (salient). An action might be salient in terms of payoffs and in terms of labels. In the \u201cX-Y\u201d treatments, the level-0 distribution would not assign a uniform probability of 0.5 to each possible action, but p > 0.5 to the salient one and qi < p for the remaining actions. In the \u201cPie\u201d treatments, the level-0 distribution would not assign a uniform probability of 1/3 to each possible action, but p > 1/3 to the salient one and qi < p for the remaining actions.\n- Level-0 belief: In the model, the best responses of players with level k > 0 are anchored in what they believe the level-0 players play. Their level-0 belief might not be consistent with the level-0 distribution. For best responding, all that matters is the expected payoff from choosing an action from the action space A = {{X}, {Y}} or A = {{\u00a7}, {$}, {#}}. A subject would therefore decide on a particular action, when the probability is highest, that the other team chooses the same action.\n- Population belief: Players do not expect other players to be of the same or a higher level of reasoning. For a level-k player, the population belief is therefore defined on the set of levels strictly below k. It follows that level-0 players have no defined belief, level-1 players have a trivial belief with full probability mass on {0}, level-2 players have a well defined belief on {{0}, {1}}. From level 3 higher order beliefs are relevant as level-3 players have to form a belief about level-2\u2019s beliefs.",
+        theory_c1: "- The level-k model assumes that players only think through a certain number (k) of best responses. The model has four main ingredients:\n- Population distribution: reflects the proportion of types with a certain level k.\n- Level-0 distribution: a level-0 player does not best respond. His actions are random over the action space. The model incorporates salience by assuming higher probabilities for visually distinctive (salient) actions. An action might be salient in terms of payoffs and in terms of labels.\n- Level-0 belief: The best responses of players with k > 0 are anchored in what they believe the level-0 players play. Their level-0 belief might not be consistent with the level-0 distribution. A subject decides on a particular action when the probability is highest that the other team chooses the same action.\n- Population belief: Players do not expect other players to be of the same or a higher level of reasoning. For a level-k player, the population belief is defined on the set of levels strictly below k. Level-0 players have no defined belief, level-1 players believe everyone is level-0, level-2 players have beliefs over {0, 1}. From level 3 higher order beliefs are relevant.",
+        theory_c2: "- The level-k model: players think through k best responses. Level-0 does not best respond; actions are random over {X, Y} or {\u00a7, $, #}.\n- Salient actions (visually distinctive or distinctive payoff) get higher probability in the level-0 distribution.\n- Players with k > 0 anchor best responses on their belief about what level-0 players play.\n- Each level assumes others are of lower levels. Level-1 believes all are level-0. Level-2 has beliefs over {0, 1}. Level-3 must form beliefs about level-2\u2019s beliefs.\n- Salience can be in terms of labels or payoffs.",
+        cls_v: "Classify the participant\u2019s level of strategic reasoning using the guidance below.\n\n## Level 0\n- The player does not exhibit any strategic reasoning whatsoever.\n- Different versions of this might be randomly chosen or purely guessed actions, misunderstanding of the game structure or other non-strategic \u2018reasons\u2019 for picking a location, e.g. by taste or salience.\n- It is important that no best-responding to the other\u2019s play occurs. There could be considerations of what others might play, but without best responding to it.\n\n## Level 1\n- This player best responds to some belief about the other teams\u2019 action.\n- However, he does not realise that others will be strategic as well.\n\n## Level 2\n- This player not only shows the basic strategic consideration of playing best response (matching/mismatching), but also realises that other players best respond as well according to the belief they entertain.\n- A level-2 player clearly contemplates how the other player might best respond to his frame. The player plays a best response to this hypothesised consideration.\n\n## Level 3\n- This player realises that others could be level-2 and reacts by best responding to the associated expected play.\n- Put differently, he realises that others realise that others best respond to their initial belief.\n- Therefore, a level-3 player clearly states that his opponent expects that he (the level-3 player at question) best-responds to a certain belief.\n\n## Level 4, 5, ...\n- The process goes on in a similar fashion. A level k player realises that other subjects could be level k-1 and reacts by best responding to the associated expected play.\n\n**Important**: There are two necessary conditions for a player to exhibit a level greater than 0. First, the player has to be responsive to the salience of the games\u2019 framing. Secondly, the player has to be strategic in best-responding to his level-0 belief, which is shaped by label or payoff salience. If he did not react to salience, he would have no reason to chose one over the other object, resulting in random level 0 play.\n\nA player must show responsiveness to salience or payoffs to be above Level 0.",
+        cls_s: "- Classify the player\u2019s level of strategic thinking as 0, 1, 2, 3, 4 or 5.",
+    }
+};
+
+// Task config: which levels are available for Exp A
+const TASK_CONFIG = {
+    p1: { hasTheory: false, expLevels: ['V','C1','C3'], clsLevels: ['V','S'], label: 'P_I \u2014 Trust Game Promise', schema: 'p1_promise' },
+    p2: { hasTheory: false, expLevels: ['V','C1','C3'], clsLevels: ['V','S'], label: 'P_II \u2014 Public Goods Promise', schema: 'p2_promise' },
+    l1: { hasTheory: true,  expLevels: ['V','C1','C2'], clsLevels: ['V','S'], theoryLevels: ['V','C1','C2'], label: 'L_I \u2014 Voting Level-k', schema: 'l1_level' },
+    l2: { hasTheory: true,  expLevels: ['V','C1','C2'], clsLevels: ['V','S'], theoryLevels: ['V','C1','C2'], label: 'L_II \u2014 Coordination Level-k', schema: 'l2_level' },
+};
+
+const TASK_TITLES = { p1: 'P_I \u2014 Trust Game Promise Classification', p2: 'P_II \u2014 Public Goods Promise Classification', l1: 'L_I \u2014 Voting Game Level-k Classification', l2: 'L_II \u2014 Coordination Game Level-k Classification' };
+
+// =========================================================================
+// STATE
+// =========================================================================
+
+let state = { task: 'p1', exp: 'V', theory: 'V', cls: 'V', fmt: 'ml', frm: 'full', shot: '0' };
+
+// =========================================================================
+// UI LOGIC
+// =========================================================================
+
+function setupBtnGroup(containerId, stateKey) {
+    const container = document.getElementById(containerId);
+    container.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            container.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state[stateKey] = btn.dataset.val;
+            updateUI();
+        });
+    });
+}
+
+setupBtnGroup('task-btns', 'task');
+setupBtnGroup('exp-btns', 'exp');
+setupBtnGroup('theory-btns', 'theory');
+setupBtnGroup('cls-btns', 'cls');
+setupBtnGroup('fmt-btns', 'fmt');
+setupBtnGroup('frm-btns', 'frm');
+setupBtnGroup('shot-btns', 'shot');
+
+function updateButtonStates() {
+    const cfg = TASK_CONFIG[state.task];
+
+    // Theory group visibility
+    document.getElementById('theory-group').style.display = cfg.hasTheory ? '' : 'none';
+
+    // Exp buttons: enable only available levels + N
+    document.querySelectorAll('#exp-btns button').forEach(btn => {
+        const v = btn.dataset.val;
+        const available = v === 'N' || cfg.expLevels.includes(v);
+        btn.classList.toggle('disabled', !available);
+        if (!available && btn.classList.contains('active')) {
+            btn.classList.remove('active');
+            state.exp = cfg.expLevels[0];
+            document.querySelector(`#exp-btns button[data-val="${state.exp}"]`).classList.add('active');
+        }
+    });
+
+    // Theory buttons
+    if (cfg.hasTheory) {
+        const tLevels = cfg.theoryLevels || [];
+        document.querySelectorAll('#theory-btns button').forEach(btn => {
+            const v = btn.dataset.val;
+            const available = v === 'N' || tLevels.includes(v);
+            btn.classList.toggle('disabled', !available);
+            if (!available && btn.classList.contains('active')) {
+                btn.classList.remove('active');
+                state.theory = tLevels[0];
+                document.querySelector(`#theory-btns button[data-val="${state.theory}"]`).classList.add('active');
+            }
+        });
+    }
+}
+
+function getVariantId() {
+    const cfg = TASK_CONFIG[state.task];
+    let parts = [`exp_${state.exp}`];
+    if (cfg.hasTheory) parts.push(`theory_${state.theory}`);
+    parts.push(`cls_${state.cls}`);
+    if (state.fmt !== 'ml') parts.push(`fmt_${state.fmt}`);
+    if (state.frm !== 'full') parts.push(`frm_${state.frm}`);
+    if (state.shot !== '0') parts.push(`shot_${state.shot}`);
+    return parts.join('.');
+}
+
+// =========================================================================
+// PROMPT ASSEMBLY (browser version)
+// =========================================================================
+
+function assemblePrompt() {
+    const task = state.task;
+    const cfg = TASK_CONFIG[task];
+    const isL2 = task === 'l2';
+    const hasExp = state.exp !== 'N';
+    const hasTheory = cfg.hasTheory && state.theory !== 'N';
+    const includeExamples = state.shot !== '0';
+
+    const levelMap = { V: 'v', C1: 'c1', C2: 'c2', C3: 'c3' };
+
+    const sections = [];
+
+    // General Task
+    if (state.frm === 'full' || state.frm === 'norp') {
+        sections.push({ id: 'general-task', title: '# General Task', content: SECTIONS[`general_task_${task}`] });
+    }
+
+    // Role Persona
+    if (state.frm === 'full' || state.frm === 'nogt') {
+        sections.push({ id: 'role-persona', title: '# Role Persona', content: SECTIONS[`role_persona_${task}`] });
+    }
+
+    // Context
+    if (hasExp || hasTheory) {
+        let contextContent = '';
+        if (hasExp) {
+            const key = `exp_${levelMap[state.exp]}`;
+            const text = PIPELINE[task][key] || '(content not found)';
+            sections.push({ id: 'experiment', title: '## Experiment', parentTitle: '# Context', content: text });
+        }
+        if (hasTheory) {
+            const key = `theory_${levelMap[state.theory]}`;
+            const text = PIPELINE[task][key] || '(content not found)';
+            sections.push({ id: 'theory', title: '## Theory', content: text });
+        }
+    }
+
+    // Input Format (L2 only)
+    if (isL2) {
+        sections.push({ id: 'input-format', title: '# Input Format', content: SECTIONS['input_format_l2'] });
+    }
+
+    // Classification Task
+    const clsKey = `cls_${state.cls === 'V' ? 'v' : 's'}`;
+    sections.push({ id: 'classification-task', title: '# Classification Task', content: PIPELINE[task][clsKey] || '(not found)' });
+
+    // Classification Coding
+    sections.push({ id: 'classification-coding', title: '# Classification Coding', content: SECTIONS[`classification_coding_${task}`] });
+
+    // Examples
+    if (includeExamples) {
+        const ex = EXAMPLES[task];
+        if (ex && !ex.startsWith('<!--')) {
+            sections.push({ id: 'examples', title: '# Examples', content: ex });
+        }
+    }
+
+    // Constraints
+    sections.push({ id: 'constraints', title: '# Constraints', content: SECTIONS[`constraints_${task}`] });
+
+    // Output Format
+    sections.push({ id: 'output-format', title: '# Output Format', content: SECTIONS[`output_format_${task}`] });
+
+    return sections;
+}
+
+function sectionsToText(sections) {
+    let text = '';
+    for (const s of sections) {
+        if (s.parentTitle) {
+            text += s.parentTitle + '\n\n';
+        }
+        text += s.title + '\n' + s.content + '\n\n';
+    }
+    return text.trim();
+}
+
+function applyFormat(prompt, format) {
+    if (format === 'ml') return prompt;
+
+    const removeHeaders = (format === 'fl' || format === 'pt');
+    const stripHeaderMarkers = (format === 'tl' || format === 'mp');
+    const bulletsToProsa = (format === 'mp' || format === 'pt');
+
+    const lines = prompt.split('\n');
+    const result = [];
+    let bulletBuffer = [];
+
+    function flushBullets() {
+        if (bulletBuffer.length === 0) return;
+        if (bulletsToProsa) {
+            const trimmed = bulletBuffer.map(b => b.trimEnd());
+            let paragraph = trimmed[0];
+            for (let i = 1; i < trimmed.length; i++) {
+                const prev = paragraph.slice(-1);
+                if (/[.!?:)]$/.test(prev)) {
+                    paragraph += ' ' + trimmed[i];
+                } else {
+                    paragraph += '. ' + trimmed[i];
+                }
+            }
+            if (!/[.!?]$/.test(paragraph)) paragraph += '.';
+            result.push(paragraph);
+        } else {
+            for (const b of bulletBuffer) result.push('- ' + b);
+        }
+        bulletBuffer = [];
+    }
+
+    for (const line of lines) {
+        if (line.startsWith('- ')) {
+            bulletBuffer.push(line.substring(2));
+        } else {
+            flushBullets();
+            if (/^#{1,3}\s/.test(line)) {
+                if (removeHeaders) {
+                    result.push('');
+                } else if (stripHeaderMarkers) {
+                    result.push(line.replace(/^#{1,3}\s+/, ''));
+                } else {
+                    result.push(line);
+                }
+            } else {
+                result.push(line);
+            }
+        }
+    }
+    flushBullets();
+
+    return result.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '');
+}
+
+// =========================================================================
+// RENDERING
+// =========================================================================
+
+function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderMarkdown(text) {
+    let html = escapeHtml(text);
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Headers (already in section titles, but handle ## inside content)
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    // Bullet lists
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    // Tables (simple)
+    html = html.replace(/^\|(.+)\|$/gm, (match) => {
+        const cells = match.split('|').filter(c => c.trim());
+        const isHeader = cells.some(c => /^[\s-]+$/.test(c));
+        if (isHeader) return '';
+        const tag = 'td';
+        return '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+    });
+    html = html.replace(/(<tr>.*<\/tr>\n?)+/g, '<table>$&</table>');
+    // Paragraphs for remaining text
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = '<p>' + html + '</p>';
+    html = html.replace(/<p>\s*<\/p>/g, '');
+    return html;
+}
+
+function renderPrompt(sections) {
+    let html = '';
+    let inContext = false;
+
+    for (const s of sections) {
+        if (s.parentTitle && !inContext) {
+            html += `<div class="section" data-section="experiment"><h1>Context</h1>`;
+            inContext = true;
+        }
+
+        if (inContext && s.id !== 'experiment' && s.id !== 'theory') {
+            html += '</div>';
+            inContext = false;
+        }
+
+        const titleTag = s.title.startsWith('##') ? 'h2' : 'h1';
+        const titleText = s.title.replace(/^#+\s*/, '');
+
+        if (s.id === 'experiment' || s.id === 'theory') {
+            html += `<div class="section" data-section="${s.id}">`;
+            html += `<h2>${titleText}</h2>`;
+            html += renderMarkdown(s.content);
+            html += `</div>`;
+        } else {
+            if (inContext) { html += '</div>'; inContext = false; }
+            html += `<div class="section" data-section="${s.id}">`;
+            html += `<${titleTag}>${titleText}</${titleTag}>`;
+            html += renderMarkdown(s.content);
+            html += `</div>`;
+        }
+    }
+
+    if (inContext) html += '</div>';
+    return html;
+}
+
+const LEGEND_ITEMS = [
+    { id: 'general-task', label: 'General Task', color: 'var(--general-task)' },
+    { id: 'role-persona', label: 'Role Persona', color: 'var(--role-persona)' },
+    { id: 'experiment', label: 'Context: Experiment', color: 'var(--experiment)' },
+    { id: 'theory', label: 'Context: Theory', color: 'var(--theory)' },
+    { id: 'input-format', label: 'Input Format', color: 'var(--input-format)' },
+    { id: 'classification-task', label: 'Classification Task', color: 'var(--classification-task)' },
+    { id: 'classification-coding', label: 'Classification Coding', color: 'var(--classification-coding)' },
+    { id: 'examples', label: 'Examples', color: 'var(--examples)' },
+    { id: 'constraints', label: 'Constraints', color: 'var(--constraints)' },
+    { id: 'output-format', label: 'Output Format', color: 'var(--output-format)' },
+];
+
+function renderLegend(sections) {
+    const present = new Set(sections.map(s => s.id));
+    return LEGEND_ITEMS.map(item => {
+        const dim = present.has(item.id) ? '' : ' dim';
+        return `<div class="legend-item${dim}"><div class="dot" style="background:${item.color}"></div>${item.label}</div>`;
+    }).join('');
+}
+
+function updateUI() {
+    updateButtonStates();
+
+    const sections = assemblePrompt();
+    const rawText = sectionsToText(sections);
+    const formattedText = applyFormat(rawText, state.fmt);
+    const variantId = getVariantId();
+
+    // Update prompt display
+    if (state.fmt === 'ml') {
+        // Structured view with color-coded sections
+        document.getElementById('prompt-content').innerHTML = renderPrompt(sections);
+    } else {
+        // Formatted text view — show the actual transformed output
+        document.getElementById('prompt-content').innerHTML =
+            '<div class="section" data-section="general-task">' +
+            renderMarkdown(formattedText) +
+            '</div>';
+    }
+    document.getElementById('variant-id').textContent = variantId;
+    document.getElementById('prompt-title').textContent = TASK_TITLES[state.task];
+    document.getElementById('prompt-task-label').textContent = TASK_CONFIG[state.task].schema;
+
+    // Stats use the formatted text (what the model actually sees)
+    const chars = formattedText.length;
+    const words = formattedText.split(/\s+/).filter(w => w).length;
+    const estTokens = Math.round(chars / 3.5);
+    const fmtLabel = {ml:'markdown+list', tl:'title+list', mp:'title+para', fl:'flat list', pt:'plain text'}[state.fmt];
+    document.getElementById('stats').innerHTML =
+        `Format: <span>${fmtLabel}</span><br>` +
+        `Characters: <span>${chars.toLocaleString()}</span><br>` +
+        `Words: <span>${words.toLocaleString()}</span><br>` +
+        `Est. tokens: <span>~${estTokens.toLocaleString()}</span><br>` +
+        `Sections: <span>${sections.length}</span>`;
+
+    // Legend
+    document.getElementById('legend').innerHTML = renderLegend(sections);
+}
+
+// Compare mode (placeholder — just toggles class)
+function toggleCompare() {
+    document.getElementById('compare-btn').classList.toggle('active');
+    // Could expand to side-by-side comparison
+}
+
+// Initial render
+updateUI();
+</script>
+</body>
+</html>
