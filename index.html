@@ -74,6 +74,9 @@
     gap: 18px;
   }
   @media (min-width: 700px) {
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 22px; }
+  }
+  @media (min-width: 1100px) {
     .grid { grid-template-columns: repeat(3, 1fr); gap: 22px; }
   }
 
@@ -197,6 +200,24 @@
       </div>
       <div class="label">Prompt assembly</div>
       <div class="desc">Build any prompt variant interactively: pick task, content level, format, examples and more.</div>
+      <div class="badge">Interactive</div>
+    </a>
+
+    <a class="card" href="shotformat.html">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h13"/><circle cx="20" cy="12" r="1.6"/><circle cx="20" cy="18" r="1.6"/></svg>
+      </div>
+      <div class="label">Example formatting</div>
+      <div class="desc">The same worked examples in five presentation styles: markdown, XML, delimiter, arrow, multi-turn.</div>
+      <div class="badge">Interactive</div>
+    </a>
+
+    <a class="card" href="fidelity.html">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/><circle cx="8" cy="6" r="1.6" fill="currentColor"/><circle cx="14" cy="12" r="1.6" fill="currentColor"/><circle cx="11" cy="18" r="1.6" fill="currentColor"/></svg>
+      </div>
+      <div class="label">Verbose &amp; noise</div>
+      <div class="desc">Verbatim sections side-by-side with verbose elaborations and matched-length noise.</div>
       <div class="badge">Interactive</div>
     </a>
   </div>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Example formatting — Much Ado about Prompting</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #fafaf7;
+    color: #1c1c1c;
+    padding: 24px 32px 56px;
+    line-height: 1.5;
+  }
+  header {
+    margin-bottom: 24px;
+    border-bottom: 1px solid #e5e5e0;
+    padding-bottom: 16px;
+  }
+  h1 {
+    font-size: 1.4em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .sub { color: #777; font-size: 0.9em; font-style: italic; }
+  .controls {
+    display: flex; gap: 6px; margin-top: 18px; flex-wrap: wrap;
+  }
+  .tab {
+    padding: 6px 14px;
+    border: 1px solid #d0cfc7;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.88em;
+    color: #555;
+    transition: all 0.15s;
+  }
+  .tab:hover { border-color: #1a3a5f; color: #1a3a5f; }
+  .tab.active {
+    background: #1a3a5f; color: #fff; border-color: #1a3a5f; font-weight: 500;
+  }
+  .styles {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    margin-top: 24px;
+  }
+  @media (min-width: 1100px) {
+    .styles { grid-template-columns: 1fr 1fr; }
+  }
+  .style {
+    background: #fff;
+    border: 1px solid #e5e5e0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .style-header {
+    background: #f0ede5;
+    padding: 10px 16px;
+    border-bottom: 1px solid #e5e5e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .style-key { font-weight: 600; font-size: 0.9em; color: #1a3a5f; }
+  .style-name { font-size: 0.78em; color: #888; font-style: italic; }
+  .style-body {
+    padding: 14px 18px;
+    font-family: "SFMono-Regular", Consolas, "Courier New", monospace;
+    font-size: 0.78em;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    color: #333;
+    background: #fcfcfa;
+    max-height: 460px;
+    overflow-y: auto;
+  }
+  .multi-turn-msg {
+    margin-bottom: 6px;
+    padding: 6px 10px;
+    border-radius: 4px;
+  }
+  .multi-turn-user { background: #e8eef5; }
+  .multi-turn-asst { background: #eef5e8; }
+  .role { font-weight: 600; color: #555; margin-right: 6px; }
+  footer {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e5e0;
+    font-size: 0.78em;
+    color: #999;
+    text-align: center;
+  }
+  footer a { color: #777; text-decoration: none; }
+  footer a:hover { color: #1a3a5f; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Example formatting</h1>
+  <div class="sub">The same set of worked examples, rendered in each of the five presentation styles tested.</div>
+  <div class="controls" id="task-tabs">
+    <button class="tab active" data-task="p2">Promise</button>
+    <button class="tab" data-task="l1">Level-k I</button>
+    <button class="tab" data-task="l2">Level-k II</button>
+  </div>
+</header>
+
+<div class="styles" id="styles"></div>
+
+<footer>
+  <a href="index.html">← back to companion materials</a>
+</footer>
+
+<script>
+// =====================================================================
+// EMBEDDED EXAMPLES (first 3 per task, lightly trimmed for the viewer)
+// =====================================================================
+
+const EXAMPLES = {
+  p2: [
+    { input: "P1: all 200 then?\nP2: yes", output: '{"p1":"0","p2":"1","p3":"na"}' },
+    { input: "P1: Are we all just going to with max?\nP2: agree", output: '{"p1":"0","p2":"1","p3":"na"}' },
+    { input: "P1: I think it's best if we invest 200", output: '{"p1":"0","p2":"na","p3":"na"}' }
+  ],
+  l1: [
+    { input: "My favorite color is blue, So I chose blue.", output: '{"classification":"0"}' },
+    { input: "Our signal is blue. Let's play blue.", output: '{"classification":"1"}' },
+    { input: "I have a blue ball. If we have the blue urn, someone else also has a blue ball and as a result our group will chose blue regardless of my vote. If we have the red urn, I am the only one with the blue ball and if I vote blue, we will chose the wrong urn. So I should vote for red.", output: '{"classification":"2"}' }
+  ],
+  l2: [
+    { input: "Team: 1\nPayoffs if both teams coordinate (0 if mismatch):\n  X \u2192 Team 1 receives 5, Team 2 receives 5\n  Y \u2192 Team 1 receives 5, Team 2 receives 5\nDecision: X\nMessage: Well, it's a pure guess.", output: '{"classification":"0"}' },
+    { input: "Team: 1\nPayoffs:\n  X \u2192 Team 1 receives 5, Team 2 receives 6\n  Y \u2192 Team 1 receives 6, Team 2 receives 5\nDecision: X\nMessage: They are probably picking X, so we should do the same.", output: '{"classification":"1"}' }
+  ]
+};
+
+// =====================================================================
+// FORMAT RENDERERS  (mirrors code/prompts/assembler.js)
+// =====================================================================
+
+function fmt_n(examples) {
+  return examples.map((ex, i) =>
+    `## Example ${i + 1}\n### Message\n${ex.input}\n### Classification\n${ex.output}`
+  ).join("\n\n");
+}
+
+function fmt_nx(examples) {
+  return "<examples>\n" + examples.map(ex =>
+    `<example>\n<message>\n${ex.input}\n</message>\n<classification>${ex.output}</classification>\n</example>`
+  ).join("\n") + "\n</examples>";
+}
+
+function fmt_nd(examples) {
+  return examples.map((ex, i) =>
+    `Example ${i + 1}:\nMessage: ${ex.input}\nClassification: ${ex.output}`
+  ).join("\n\n");
+}
+
+function fmt_na(examples) {
+  return examples.map(ex =>
+    `"${ex.input.replace(/\n/g, " ")}" \u2192 ${ex.output}`
+  ).join("\n");
+}
+
+const STYLES = [
+  { key: "n",  name: "markdown (baseline)", render: fmt_n },
+  { key: "nx", name: "XML tags",            render: fmt_nx },
+  { key: "nd", name: "delimiter",           render: fmt_nd },
+  { key: "na", name: "arrow",               render: fmt_na }
+];
+
+// Multi-turn rendered as a sequence of styled message bubbles
+function renderMultiTurn(examples) {
+  const wrap = document.createElement("div");
+  examples.forEach(ex => {
+    const u = document.createElement("div");
+    u.className = "multi-turn-msg multi-turn-user";
+    u.innerHTML = `<span class="role">User:</span><br>${escapeHtml(ex.input).replace(/\n/g,"<br>")}`;
+    wrap.appendChild(u);
+    const a = document.createElement("div");
+    a.className = "multi-turn-msg multi-turn-asst";
+    a.innerHTML = `<span class="role">Assistant:</span> ${escapeHtml(ex.output)}`;
+    wrap.appendChild(a);
+  });
+  return wrap;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// =====================================================================
+// RENDER
+// =====================================================================
+
+function render(task) {
+  const examples = EXAMPLES[task];
+  const container = document.getElementById("styles");
+  container.innerHTML = "";
+
+  STYLES.forEach(s => {
+    const card = document.createElement("div");
+    card.className = "style";
+    card.innerHTML = `
+      <div class="style-header">
+        <span class="style-key">${s.key} <span class="style-name">— ${s.name}</span></span>
+      </div>
+      <div class="style-body">${escapeHtml(s.render(examples))}</div>`;
+    container.appendChild(card);
+  });
+
+  // Multi-turn (special — bubbles)
+  const mt = document.createElement("div");
+  mt.className = "style";
+  mt.innerHTML = `
+    <div class="style-header">
+      <span class="style-key">t <span class="style-name">— multi-turn (sent as user/assistant turns, outside the system message)</span></span>
+    </div>`;
+  const body = document.createElement("div");
+  body.className = "style-body";
+  body.appendChild(renderMultiTurn(examples));
+  mt.appendChild(body);
+  container.appendChild(mt);
+}
+
+// Tab handlers
+document.getElementById("task-tabs").addEventListener("click", e => {
+  if (e.target.tagName !== "BUTTON") return;
+  document.querySelectorAll("#task-tabs .tab").forEach(b => b.classList.remove("active"));
+  e.target.classList.add("active");
+  render(e.target.dataset.task);
+});
+
+render("p2");
+</script>
+
+</body>
+</html>

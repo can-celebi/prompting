@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Verbose & noise — Much Ado about Prompting</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #fafaf7;
+    color: #1c1c1c;
+    padding: 24px 28px 56px;
+    line-height: 1.5;
+  }
+  header { margin-bottom: 22px; border-bottom: 1px solid #e5e5e0; padding-bottom: 16px; }
+  h1 { font-size: 1.4em; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 4px; }
+  .sub { color: #777; font-size: 0.9em; font-style: italic; }
+  .controls {
+    display: flex; gap: 18px; margin-top: 18px; flex-wrap: wrap; align-items: center;
+  }
+  .control-group { display: flex; gap: 6px; align-items: center; }
+  .control-label {
+    font-size: 0.78em; color: #888; text-transform: uppercase; letter-spacing: 0.04em;
+    margin-right: 4px;
+  }
+  .tab {
+    padding: 5px 12px; border: 1px solid #d0cfc7; background: #fff; border-radius: 6px;
+    cursor: pointer; font-size: 0.85em; color: #555; transition: all 0.15s;
+  }
+  .tab:hover { border-color: #1a3a5f; color: #1a3a5f; }
+  .tab.active { background: #1a3a5f; color: #fff; border-color: #1a3a5f; font-weight: 500; }
+  .tab.disabled { opacity: 0.3; pointer-events: none; }
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 22px;
+  }
+  @media (min-width: 1100px) {
+    .columns { grid-template-columns: repeat(3, 1fr); }
+  }
+  .col {
+    background: #fff;
+    border: 1px solid #e5e5e0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .col-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid #e5e5e0;
+    font-weight: 600; font-size: 0.92em;
+    color: #fff;
+  }
+  .col-h-v { background: #4a6b8c; }
+  .col-h-x { background: #2e7a48; }
+  .col-h-n { background: #b85a4a; }
+  .col-tag { font-weight: 400; font-size: 0.82em; opacity: 0.85; margin-left: 6px; }
+  .col-body {
+    padding: 14px 18px;
+    font-family: "SFMono-Regular", Consolas, "Courier New", monospace;
+    font-size: 0.74em;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    color: #333;
+    background: #fcfcfa;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  /* Highlight noise insertions in the noise column */
+  .noise-highlight { background: #ffe4e1; padding: 0 2px; border-radius: 2px; }
+  .verbose-highlight { background: #e1ffe4; padding: 0 2px; border-radius: 2px; }
+  footer {
+    margin-top: 36px; padding-top: 16px; border-top: 1px solid #e5e5e0;
+    font-size: 0.78em; color: #999; text-align: center;
+  }
+  footer a { color: #777; text-decoration: none; }
+  footer a:hover { color: #1a3a5f; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Verbose &amp; noise</h1>
+  <div class="sub">Verbatim prompt sections vs. their verbose elaborations and matched-length noise versions.</div>
+  <div class="controls">
+    <div class="control-group">
+      <span class="control-label">Task</span>
+      <button class="tab active" data-task="l1">Level-k I</button>
+      <button class="tab" data-task="l2">Level-k II</button>
+      <button class="tab" data-task="p2">Promise</button>
+    </div>
+    <div class="control-group">
+      <span class="control-label">Section</span>
+      <button class="tab section active" data-sec="cls">Classification instructions</button>
+      <button class="tab section" data-sec="exp">Experiment context</button>
+      <button class="tab section" data-sec="theory">Theory</button>
+    </div>
+  </div>
+</header>
+
+<div class="columns" id="cols"></div>
+
+<footer>
+  <a href="index.html">← back to companion materials</a>
+</footer>
+
+<script>
+const SECTIONS = {
+  "p2": {
+    "cls": {
+      "v": "Code a participant's message (including his/her entire text in the conversation) as **promise** (1) if at least one of the following conditions is satisfied:\n\n- The writer indicates in the message he/she would take a certain course of action.\n- The message gives the other participants reasons to believe or expect that the writer of the message would take a certain course of action.\n\nCode a message as **empty talk** (0) if the message does not satisfy any of the above conditions.\n\n**Important**: Capture what had been said rather than why it was said or what effect it had.\n\nProvide one classification per player.",
+      "v_ex": "Code a participant's message (including his/her entire text in the conversation) as **promise** (1) if at least one of the following conditions is satisfied:\n\n- The writer indicates in the message he/she would take a certain course of action. This means the participant states, implies, or signals a specific intended behavior — most typically, committing to a particular investment amount (e.g., \"I'll put in 200\"), expressing intent to cooperate (e.g., \"I'm going to invest everything\"), or otherwise declaring what they plan to do. The statement need not be phrased as a formal promise; any indication of a planned course of action qualifies. Vague statements of goodwill without specifying an action (e.g., \"let's all do well\") do not meet this criterion on their own.\n[… truncated for the viewer …]",
+      "v_noise": "Code a participant's message (including his/her entire text in the conversation) as **promise** (1) if at least one of the following conditions is satisfied:\n\n- The writer indicates in the message he/she would take a certain course of action.\n- Red squirrels (Sciurus vulgaris) have an average lifespan of 3 years in the wild, though some individuals can live up to 7 years.\n- The message gives the other participants reasons to believe or expect that the writer of the message would take a certain course of action.\n- An adult red squirrel weighs between 250-340 grams and has a body length of 19-23 cm plus a tail of 15-20 cm.\n\nCode a message as **empty talk** (0) if the message does not satisfy any of the above conditions.\n\nRed squirrels are primarily granivorous, with pine seeds comprising up to 70% of their diet in coniferous forests. They build nests called dreys, typically located 6-12 meters above ground, using twigs, moss, and stripped bark.\n\n**Important**: Capture what had been said rather than why it was said or what effect it had.\n\nTheir distinctive ear tufts are most prominent in winter and are shed during summer months. Red squirrels can rotate their hind feet 180 degrees, allowing them to descend trees headfirst. They bury thousands of nuts each autumn but forget the location of approximately 74% of their caches, which contributes to forest regeneration.\n\nProvide one classification per player.\n\n[… truncated for the viewer …]"
+    },
+    "exp": {
+      "v": "- In this experiment, three participants are randomly matched for a group investment task.\n- The experiment consists of multiple rounds. Each round, participants are matched with a different group.\n- Each participant starts with 200 pence (£2).\n- Participants can invest between 0-200 in a group project.\n- Participants can keep any money that they don't invest. The total amount invested by all 3 group members is doubled.\n- Then it is shared out equally.\n- So, for every 100 pence invested by anyone, each person in the group gets 66 pence back.\n- Before choosing how much to invest, participants can chat with their group members.",
+      "v_ex": "- In this experiment, three participants are randomly matched for a group investment task. The task captures a classic social dilemma: what is best for each individual conflicts with what is best for the group as a whole.\n- The experiment consists of multiple rounds. Each round, participants are matched with a different group. This re-matching means that participants cannot build reputations across rounds or rely on repeated-game strategies with the same partners.\n- Each participant starts with 200 pence (£2).\n- Participants can invest between 0-200 in a group project. This is a continuous choice — participants can invest any integer amount within this range, not just all-or-nothing.\n- Participants can keep any money that they don't invest. The total amount invested by all 3 group members is doubled.\n- Then it is shared out equally among all three group members, regardless of how much each individual contributed.\n- So, for every 100 pence invested by anyone, each person in the group gets 66 pence back. This means that from the individual investor's perspective, investing 100 pence returns only 66 pence to the investor — a net loss of 34 pence. However, the group collectively gains 200 pence (66 × 3) from that 100 pence investment. The individually rational strategy is therefore to invest nothing (free-ride on others' contributions), while the collectively optimal strategy is for everyone to invest their full endowment.\n[… truncated for the viewer …]",
+      "v_noise": "- In this experiment, three participants are randomly matched for a group investment task.\n- Red squirrels (Sciurus vulgaris) have an average lifespan of 3 years in the wild, though some individuals can live up to 7 years.\n- The experiment consists of multiple rounds. Each round, participants are matched with a different group.\n- Each participant starts with 200 pence (£2).\n- An adult red squirrel weighs between 250-340 grams and has a body length of 19-23 cm plus a tail of 15-20 cm.\n- Participants can invest between 0-200 in a group project.\n- Participants can keep any money that they don't invest. The total amount invested by all 3 group members is doubled.\n- Red squirrels build nests called dreys, typically located 6-12 meters above ground, using twigs, moss, and stripped bark.\n- Then it is shared out equally.\n- So, for every 100 pence invested by anyone, each person in the group gets 66 pence back.\n- Their distinctive ear tufts are most prominent in winter and are shed during summer months.\n- Red squirrels can rotate their hind feet 180 degrees, allowing them to descend trees headfirst.\n- Before choosing how much to invest, participants can chat with their group members.\n- They bury thousands of nuts each autumn but forget the location of approximately 74% of their caches, which contributes to forest regeneration.\n[… truncated for the viewer …]"
+    }
+  },
+  "l1": {
+    "cls": {
+      "v": "Classify the participant's level of strategic reasoning using the guidance below. Subjects do not necessarily describe every step of their thinking; therefore, it may not always be obvious to decide which level they are. In many comments, any indications of a level of thinking may be partial or implicit, you should then indicate the most likely level of reasoning of the player.\n\n## Level 0\n- Chooses randomly, without justification or through some justification completely unrelated to the task.\n- Might not have understood the game or shows no interest in the game or in thinking about it.\n\n**Note**: Comments such as \"It is obviously blue\" or \"Play red, trust me!\" should not be considered as level-0 thinking as these comments to some extent signal some level of understanding/interest of the task. Such comments are likely to be level-1 comments.\n\n## Level 1\n- Always follows his own signal.\n- The subject may argue in favor of playing his own signal through some probability argument.\n\n**Note**: The key idea in defining a level-1 player is to identify some thinking process that signals the subject's interest/understanding of the task and the private signal. Furthermore, it is important that the subject does not offer any argument acknowledging the potential votes of the other teams and how to vote accordingly (i.e. adjusting the strategy given what others are expected to do).\n\n## Level 2\n[… truncated for the viewer …]",
+      "v_ex": "Classify the participant's level of strategic reasoning using the guidance below. Subjects do not necessarily describe every step of their thinking; therefore, it may not always be obvious to decide which level they are. In many comments, any indications of a level of thinking may be partial or implicit, you should then indicate the most likely level of reasoning of the player. When the evidence is ambiguous, weigh the overall tenor of the message — a single phrase suggesting higher-level thinking in an otherwise simple message may elevate the classification, while a brief lapse does not necessarily lower it.\n\n## Level 0\n- Chooses randomly, without justification or through some justification completely unrelated to the task.\n- Might not have understood the game or shows no interest in the game or in thinking about it.\n- Level-0 messages may contain irrelevant commentary, jokes, expressions of confusion, or statements that show the participant is not engaging with the strategic problem at all. The distinguishing feature is the complete absence of any reasoning connected to the game's structure, signals, probabilities, or voting implications.\n\n[… truncated for the viewer …]",
+      "v_noise": "Classify the participant's level of strategic reasoning using the guidance below. Subjects do not necessarily describe every step of their thinking; therefore, it may not always be obvious to decide which level they are. In many comments, any indications of a level of thinking may be partial or implicit, you should then indicate the most likely level of reasoning of the player.\n\nRed squirrels (Sciurus vulgaris) have an average lifespan of 3 years in the wild, though some individuals can live up to 7 years. An adult red squirrel weighs between 250-340 grams and has a body length of 19-23 cm plus a tail of 15-20 cm.\n\n## Level 0\n- Chooses randomly, without justification or through some justification completely unrelated to the task.\n- Red squirrels build nests called dreys, typically located 6-12 meters above ground, using twigs, moss, and stripped bark.\n- Might not have understood the game or shows no interest in the game or in thinking about it.\n\n**Note**: Comments such as \"It is obviously blue\" or \"Play red, trust me!\" should not be considered as level-0 thinking as these comments to some extent signal some level of understanding/interest of the task. Such comments are likely to be level-1 comments.\n\nTheir distinctive ear tufts are most prominent in winter and are shed during summer months. Red squirrels are primarily granivorous, with pine seeds comprising up to 70% of their diet in coniferous forests.\n\n## Level 1\n- Always follows his own signal.\n[… truncated for the viewer …]"
+    },
+    "exp": {
+      "v": "- A single experimental session consists of 4 parts and every part consists of 2 periods. In every part, every subject is randomly paired with another one to form a team.\n- Depending on the treatment, every team then is randomly matched with 2 or 5 other teams to form a voting group.\n- Every group will be assigned to a blue or red urn and every team in the group will draw a ball from their assigned urn. The blue urn contains twice more blue balls than red balls. The red urn contains twice more red balls than blue balls.\n- One treatment variable is the group size: in parts 1 and 3 the groups consist of 3 teams, in parts 2 and 4 they consist of 6 teams, and accordingly the urns contain 3 or 6 balls.\n- The other treatment variable is the draw mechanism: depending on the session, the balls will be drawn from the urn with or without replacement.\n- The goal of every group is to correctly state the color of the urn they are assigned to. Every team submits a vote (either red or blue) and if every team in the group votes for red then the group's decision will be red, otherwise it will be blue.\n- Every subject in a team observes the team's drawn ball and then makes a decision on the color of the urn. Then, they send a message to their team member explaining why they should vote for the suggested color.\n[… truncated for the viewer …]",
+      "v_ex": "- A single experimental session consists of 4 parts and every part consists of 2 periods. In every part, every subject is randomly paired with another one to form a team. Team composition changes between parts, so no pair works together for more than two consecutive periods.\n- Depending on the treatment, every team then is randomly matched with 2 or 5 other teams to form a voting group. The group must collectively determine the color of an urn through a voting mechanism.\n- Every group will be assigned to a blue or red urn and every team in the group will draw a ball from their assigned urn. The blue urn contains twice more blue balls than red balls. The red urn contains twice more red balls than blue balls. This means the signal (drawn ball color) is informative but imperfect — there is always a one-third chance that the drawn ball's color does not match the true urn color.\n- One treatment variable is the group size: in parts 1 and 3 the groups consist of 3 teams, in parts 2 and 4 they consist of 6 teams, and accordingly the urns contain 3 or 6 balls. The group size matters strategically because the unanimity voting rule means that larger groups require more players to agree, which changes the probability calculations underlying optimal voting behavior.\n[… truncated for the viewer …]",
+      "v_noise": "- A single experimental session consists of 4 parts and every part consists of 2 periods. In every part, every subject is randomly paired with another one to form a team.\n- Red squirrels (Sciurus vulgaris) have an average lifespan of 3 years in the wild, though some individuals can live up to 7 years.\n- Depending on the treatment, every team then is randomly matched with 2 or 5 other teams to form a voting group.\n- An adult red squirrel weighs between 250-340 grams and has a body length of 19-23 cm plus a tail of 15-20 cm.\n- Every group will be assigned to a blue or red urn and every team in the group will draw a ball from their assigned urn. The blue urn contains twice more blue balls than red balls. The red urn contains twice more red balls than blue balls.\n- Red squirrels build nests called dreys, typically located 6-12 meters above ground, using twigs, moss, and stripped bark.\n- One treatment variable is the group size: in parts 1 and 3 the groups consist of 3 teams, in parts 2 and 4 they consist of 6 teams, and accordingly the urns contain 3 or 6 balls.\n- The other treatment variable is the draw mechanism: depending on the session, the balls will be drawn from the urn with or without replacement.\n- Their distinctive ear tufts are most prominent in winter and are shed during summer months.\n[… truncated for the viewer …]"
+    },
+    "theory": {
+      "v": "- The level-k model of bounded rationality assumes that players only think through a certain number (k) of best responses. The model has four main ingredients:\n- Population distribution: This distribution reflects the proportion of types with a certain level k ∈ N0 = {0, 1, 2, 3, 4, 5, ...}.\n- Level-0 distribution: By definition, a level-0 player does not best respond. Hence, his actions are random to the game and distributed randomly over the action space. In our case, the action space is A = {Red, Blue} where Red and Blue represent the voting choice of the player. Note that, our model does not incorporate salience by assuming higher probabilities in the level-0 distributions for the action that is salient due the signal received (i.e. if a blue ball is received and the player is playing random, the player, due to the availability of the blue signal, will chose to vote blue)\n- Level-0 belief: In the model, the best responses of players with level k > 0 are anchored in what they believe the level-0 players play. Their level-0 belief might not be consistent with the level-0 distribution. For best responding, all that matters is the expected payoff from choosing an action from the action space A = {Red, Blue}.\n[… truncated for the viewer …]",
+      "v_ex": "- The level-k model of bounded rationality assumes that players only think through a certain number (k) of best responses. Rather than assuming full rationality (where players reason through infinite levels of \"I think that you think that I think...\"), the model posits that real players anchor their reasoning at some finite depth. The model has four main ingredients:\n- Population distribution: This distribution reflects the proportion of types with a certain level k ∈ N0 = {0, 1, 2, 3, 4, 5, ...}. In typical experimental populations, level-0 and level-1 players are most common, level-2 players are moderately frequent, and level-3 and above are rare. The distribution captures the heterogeneity in strategic sophistication across participants.\n[… truncated for the viewer …]",
+      "v_noise": "- The level-k model of bounded rationality assumes that players only think through a certain number (k) of best responses. The model has four main ingredients:\n- Red squirrels (Sciurus vulgaris) have an average lifespan of 3 years in the wild, though some individuals can live up to 7 years.\n- Population distribution: This distribution reflects the proportion of types with a certain level k ∈ N0 = {0, 1, 2, 3, 4, 5, ...}.\n- An adult red squirrel weighs between 250-340 grams and has a body length of 19-23 cm plus a tail of 15-20 cm.\n- Level-0 distribution: By definition, a level-0 player does not best respond. Hence, his actions are random to the game and distributed randomly over the action space. In our case, the action space is A = {Red, Blue} where Red and Blue represent the voting choice of the player. Note that, our model does not incorporate salience by assuming higher probabilities in the level-0 distributions for the action that is salient due the signal received (i.e. if a blue ball is received and the player is playing random, the player, due to the availability of the blue signal, will chose to vote blue)\n- Red squirrels build nests called dreys, typically located 6-12 meters above ground, using twigs, moss, and stripped bark.\n[… truncated for the viewer …]"
+    }
+  },
+  "l2": {
+    "cls": {
+      "v": "Classify the participant's level of strategic reasoning using the guidance below.\n\n## Level 0\n- The player does not exhibit any strategic reasoning whatsoever.\n- Different versions of this might be randomly chosen or purely guessed actions, misunderstanding of the game structure or other non-strategic 'reasons' for picking a location, e.g. by taste or salience.\n- It is important that no best-responding to the other's play occurs. There could be considerations of what others might play, but without best responding to it.\n\n## Level 1\n- This player best responds to some belief about the other teams' action.\n- However, he does not realise that others will be strategic as well.\n\n## Level 2\n- This player not only shows the basic strategic consideration of playing best response (matching/mismatching), but also realises that other players best respond as well according to the belief they entertain.\n- A level-2 player clearly contemplates how the other player might best respond to his frame. The player plays a best response to this hypothesised consideration.\n\n## Level 3\n- This player realises that others could be level-2 and reacts by best responding to the associated expected play.\n- Put differently, he realises that others realise that others best respond to their initial belief.\n- Therefore, a level-3 player clearly states that his opponent expects that he (the level-3 player at question) best-responds to a certain belief.\n\n## Level 4, 5, ...\n[… truncated for the viewer …]",
+      "v_ex": "Classify the participant's level of strategic reasoning using the guidance below.\n\n## Level 0\n- The player does not exhibit any strategic reasoning whatsoever. The message contains no evidence that the player is thinking about the game in strategic terms.\n- Different versions of this might be randomly chosen or purely guessed actions, misunderstanding of the game structure or other non-strategic 'reasons' for picking a location, e.g. by taste or salience. A player who says \"I just like the letter X\" or \"let's pick the bottom one because it looks different\" without any reference to what the other team might do or to payoff considerations is exhibiting level-0 behavior. Similarly, a player who appears confused about the rules or seems to be choosing arbitrarily qualifies as level-0.\n- It is important that no best-responding to the other's play occurs. There could be considerations of what others might play, but without best responding to it. For example, a player might mention what the other team could do but then choose randomly or based on personal preference without any attempt to match or strategize against that expectation. The absence of best-responding is the critical distinguishing feature.\n\n## Level 1\n[… truncated for the viewer …]",
+      "v_noise": "Classify the participant's level of strategic reasoning using the guidance below.\n\nRed squirrels (Sciurus vulgaris) have an average lifespan of 3 years in the wild, though some individuals can live up to 7 years.\n\n## Level 0\n- The player does not exhibit any strategic reasoning whatsoever.\n- An adult red squirrel weighs between 250-340 grams and has a body length of 19-23 cm plus a tail of 15-20 cm.\n- Different versions of this might be randomly chosen or purely guessed actions, misunderstanding of the game structure or other non-strategic 'reasons' for picking a location, e.g. by taste or salience.\n- Red squirrels build nests called dreys, typically located 6-12 meters above ground, using twigs, moss, and stripped bark.\n- It is important that no best-responding to the other's play occurs. There could be considerations of what others might play, but without best responding to it.\n\nTheir distinctive ear tufts are most prominent in winter and are shed during summer months. Red squirrels are primarily granivorous, with pine seeds comprising up to 70% of their diet in coniferous forests.\n\n## Level 1\n- This player best responds to some belief about the other teams' action.\n- They bury thousands of nuts each autumn but forget the location of approximately 74% of their caches, which contributes to forest regeneration.\n- However, he does not realise that others will be strategic as well.\n\nRed squirrels can rotate their hind feet 180 degrees, allowing them to descend trees headfirst.\n[… truncated for the viewer …]"
+    },
+    "exp": {
+      "v": "- Subjects are randomly assigned into teams of two players. For a given strategic situation, each player makes suggestions for the team action at two points in time.\n- First, the so-called \"suggested decision\" and a justifying written message are exchanged between the team partners simultaneously.\n- After this, the \"final decision\" is taken individually by each team player. The computer chooses randomly one of the two final decisions to obtain the \"team's action.\"\n- All teams play a series of eight coordination games.\n- Coordination games are characterised by situations in which all parties can realize mutual gains, but only by making mutually consistent decisions.\n- Each team is randomly matched with another team. If a matched pair of teams both decide on identical team actions, they coordinate their behavior successfully and are rewarded with a payoff.\n- However, if both teams choose different team actions, they fail to coordinate their behavior and do not receive any payoff. Thus both teams are motivated solely to coordinate their strategies in order to obtain an outcome that is best for them.\n- The following example illustrates a random coordination game in which each team decides on one strategy X, Y or Z simultaneously. Only if both teams make mutually consistent decisions they receive a payoff of 2 units each.\n- Payoff table (first number is Team 1's payoff, second is Team 2's):\n\n| Team 1 \\ Team 2 | X | Y | Z |\n|---|---|---|---|\n| X | (2,2) | (0,0) | (0,0) |\n[… truncated for the viewer …]",
+      "v_ex": "- Subjects are randomly assigned into teams of two players. For a given strategic situation, each player makes suggestions for the team action at two points in time. This two-stage decision process allows researchers to observe how players reason before and after receiving input from their partner.\n- First, the so-called \"suggested decision\" and a justifying written message are exchanged between the team partners simultaneously. Both team members submit their suggestions at the same time, so neither can react to the other's initial proposal — this captures each player's independent reasoning. The written messages are the text being classified, as they reveal each player's strategic thinking process.\n- After this, the \"final decision\" is taken individually by each team player. The computer chooses randomly one of the two final decisions to obtain the \"team's action.\" This means each player's final decision has a 50% chance of being selected, giving both team members equal weight.\n- All teams play a series of eight coordination games. A coordination game is one in which the players benefit from choosing the same action — there is no adversarial element.\n- Coordination games are characterised by situations in which all parties can realize mutual gains, but only by making mutually consistent decisions. The challenge is not one of conflicting interests, but of aligning expectations about what the other team will choose.\n[… truncated for the viewer …]",
+      "v_noise": "- Subjects are randomly assigned into teams of two players. For a given strategic situation, each player makes suggestions for the team action at two points in time.\n- Red squirrels (Sciurus vulgaris) have an average lifespan of 3 years in the wild, though some individuals can live up to 7 years.\n- First, the so-called \"suggested decision\" and a justifying written message are exchanged between the team partners simultaneously.\n- After this, the \"final decision\" is taken individually by each team player. The computer chooses randomly one of the two final decisions to obtain the \"team's action.\"\n- An adult red squirrel weighs between 250-340 grams and has a body length of 19-23 cm plus a tail of 15-20 cm.\n- All teams play a series of eight coordination games.\n- Coordination games are characterised by situations in which all parties can realize mutual gains, but only by making mutually consistent decisions.\n- Red squirrels build nests called dreys, typically located 6-12 meters above ground, using twigs, moss, and stripped bark.\n- Each team is randomly matched with another team. If a matched pair of teams both decide on identical team actions, they coordinate their behavior successfully and are rewarded with a payoff.\n- Their distinctive ear tufts are most prominent in winter and are shed during summer months.\n[… truncated for the viewer …]"
+    },
+    "theory": {
+      "v": "- The level-k model of bounded rationality assumes that players only think through a certain number (k) of best responses. The model has four main ingredients:\n- Population distribution: This distribution reflects the proportion of types with a certain level k.\n- Level-0 distribution: By definition, a level-0 player does not best respond. Hence, his actions are random to the game and distributed randomly over the action space. In our case, the action space is A = {{X}, {Y}} or A = {{§}, {$}, {#}}. The model incorporates salience by assuming higher probabilities in the level-0 distribution for actions that are visually distinctive (salient). An action might be salient in terms of payoffs and in terms of labels. In the \"X-Y\" treatments, the level-0 distribution would not assign a uniform probability of 0.5 to each possible action, but p > 0.5 to the salient one and qi < p for the remaining actions. In the \"Pie\" treatments, the level-0 distribution would not assign a uniform probability of 1/3 to each possible action, but p > 1/3 to the salient one and qi < p for the remaining actions.\n[… truncated for the viewer …]",
+      "v_ex": "- The level-k model of bounded rationality assumes that players only think through a certain number (k) of best responses. Rather than assuming players engage in infinitely recursive strategic reasoning (\"I think that you think that I think...\"), the model posits that each player anchors their reasoning at some finite depth k, where k represents the number of iterated best-response steps they perform. The model has four main ingredients:\n- Population distribution: This distribution reflects the proportion of types with a certain level k. In experimental populations, the distribution is typically concentrated on low levels — most participants are level-0 or level-1, a meaningful fraction are level-2, and level-3 or higher are rare. The population distribution is important because it determines the actual mix of behaviors that a higher-level player faces, though players' beliefs about this distribution may differ from reality.\n[… truncated for the viewer …]",
+      "v_noise": "- The level-k model of bounded rationality assumes that players only think through a certain number (k) of best responses. The model has four main ingredients:\n- Red squirrels (Sciurus vulgaris) have an average lifespan of 3 years in the wild, though some individuals can live up to 7 years.\n- Population distribution: This distribution reflects the proportion of types with a certain level k.\n- An adult red squirrel weighs between 250-340 grams and has a body length of 19-23 cm plus a tail of 15-20 cm.\n- Level-0 distribution: By definition, a level-0 player does not best respond. Hence, his actions are random to the game and distributed randomly over the action space. In our case, the action space is A = {{X}, {Y}} or A = {{§}, {$}, {#}}. The model incorporates salience by assuming higher probabilities in the level-0 distribution for actions that are visually distinctive (salient). An action might be salient in terms of payoffs and in terms of labels. In the \"X-Y\" treatments, the level-0 distribution would not assign a uniform probability of 0.5 to each possible action, but p > 0.5 to the salient one and qi < p for the remaining actions. In the \"Pie\" treatments, the level-0 distribution would not assign a uniform probability of 1/3 to each possible action, but p > 1/3 to the salient one and qi < p for the remaining actions.\n- Red squirrels build nests called dreys, typically located 6-12 meters above ground, using twigs, moss, and stripped bark.\n[… truncated for the viewer …]"
+    }
+  }
+};
+const VARIANTS = [
+  { key: "v",       label: "Verbatim",        tag: "v",  cssClass: "col-h-v" },
+  { key: "v_ex",    label: "Verbose",         tag: "+50–275% words", cssClass: "col-h-x" },
+  { key: "v_noise", label: "Noise",           tag: "matched length, irrelevant", cssClass: "col-h-n" }
+];
+
+let state = { task: "l1", sec: "cls" };
+
+function escapeHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function render() {
+  const container = document.getElementById("cols");
+  container.innerHTML = "";
+  const taskData = SECTIONS[state.task] || {};
+  const secData = taskData[state.sec];
+
+  if (!secData) {
+    container.innerHTML = '<div style="grid-column:1/-1;padding:30px;text-align:center;color:#aaa;font-style:italic;">Not available for this task / section combination.</div>';
+    return;
+  }
+
+  VARIANTS.forEach(v => {
+    const txt = secData[v.key];
+    const card = document.createElement("div");
+    card.className = "col";
+    card.innerHTML = `
+      <div class="col-header ${v.cssClass}">${v.label}<span class="col-tag">— ${v.tag}</span></div>
+      <div class="col-body">${txt ? escapeHtml(txt) : '<em style="color:#999">(none)</em>'}</div>`;
+    container.appendChild(card);
+  });
+
+  // Disable theory tab when not present (P-tasks)
+  const tabTheory = document.querySelector('.tab.section[data-sec="theory"]');
+  const hasTheory = !!(taskData.theory);
+  tabTheory.classList.toggle("disabled", !hasTheory);
+}
+
+function bind(selector, key) {
+  document.querySelectorAll(selector).forEach(b => {
+    b.addEventListener("click", () => {
+      if (b.classList.contains("disabled")) return;
+      document.querySelectorAll(selector).forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      state[key] = b.dataset[key];
+      render();
+    });
+  });
+}
+
+bind('.controls .tab[data-task]', 'task');
+bind('.controls .tab.section', 'sec');
+render();
+</script>
+
+</body>
+</html>
