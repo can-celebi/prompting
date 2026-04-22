@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Format — Much Ado about Prompting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="page">
+<header class="page-header">
+  <div class="page-header-left">
+    <h1>Prompt formatting</h1>
+    <div class="sub">The same content rendered in five formats tested in the paper (Exp B).</div>
+  </div>
+  <a class="back-link" href="index.html">← companion</a>
+</header>
+
+<div class="note">
+  Decomposed into three binary features: <b>markdown headers</b>, <b>plain-text titles</b>, <b>bulleted lists</b>.
+  On verbatim prompts, none of the five formats produces a significant effect for any model.
+</div>
+
+<div class="columns two" id="fmtRoot"></div>
+
+
+
+<div class="cross-links">
+  <span class="label">related &rarr;</span>
+  <a href="codebooks.html">codebooks</a>
+  <a href="pipeline.html">pipeline</a>
+  <a href="content.html">content</a>
+  <a href="format.html">format</a>
+  <a href="framing.html">framing</a>
+  <a href="nshot.html">examples</a>
+  <a href="shotformat.html">example formatting</a>
+  <a href="fidelity.html">verbose &amp; noise</a>
+  <a href="examples.html">example items</a>
+</div>
+
+</body>
+</html>
+
+<script>
+const FMT = {"ml": "# Classification Task\n## Classification categories\n\n- **Promise** — the player commits to a specific future action.\n- **Empty talk** — chatter without a commitment on any future action.", "tl": "Classification Task\nClassification categories\n\n- **Promise** — the player commits to a specific future action.\n- **Empty talk** — chatter without a commitment on any future action.", "mp": "# Classification Task\n## Classification categories\n\nA *promise* is a statement in which the player commits to a specific future action. *Empty talk* is chatter without a commitment on any future action.", "fl": "- **Promise** — the player commits to a specific future action.\n- **Empty talk** — chatter without a commitment on any future action.", "pt": "A *promise* is a statement in which the player commits to a specific future action. *Empty talk* is chatter without a commitment on any future action."};
+const LABELS = {"ml": "markdown headers + bulleted list (baseline)", "tl": "plain titles + bulleted list", "mp": "markdown headers + prose", "fl": "no headers + bulleted list", "pt": "plain text — no headers, prose"};
+
+const root = document.getElementById("fmtRoot");
+Object.entries(FMT).forEach(([k, body]) => {
+  const p = document.createElement("div");
+  p.className = "panel";
+  p.innerHTML = `<div class="panel-head"><span class="panel-key">${k}</span><span class="panel-name">${LABELS[k]}</span></div><div class="panel-body"></div>`;
+  p.querySelector(".panel-body").textContent = body;
+  root.appendChild(p);
+});
+</script>

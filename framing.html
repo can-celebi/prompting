@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Framing — Much Ado about Prompting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="page">
+<header class="page-header">
+  <div class="page-header-left">
+    <h1>Framing elements</h1>
+    <div class="sub">The general-task line and the role-persona line — two framing elements tested by ablation (Exp C).</div>
+  </div>
+  <a class="back-link" href="index.html">← companion</a>
+</header>
+
+<div class="note">
+  On verbatim prompts: framing is negligible. On minimal prompts: removing the general-task line hurts $L_1$; removing the role persona hurts $L_2$.
+</div>
+
+<div class="columns two" id="frmRoot"></div>
+
+
+
+<div class="cross-links">
+  <span class="label">related &rarr;</span>
+  <a href="codebooks.html">codebooks</a>
+  <a href="pipeline.html">pipeline</a>
+  <a href="content.html">content</a>
+  <a href="format.html">format</a>
+  <a href="framing.html">framing</a>
+  <a href="nshot.html">examples</a>
+  <a href="shotformat.html">example formatting</a>
+  <a href="fidelity.html">verbose &amp; noise</a>
+  <a href="examples.html">example items</a>
+</div>
+
+</body>
+</html>
+
+<script>
+const FRM = [["full", "both (baseline)", "# General Task\nClassify the text below into one of the categories in the codebook.\n\n# Role Persona\nAct as a behavioural economist specialised in strategic communication.\n\n# Classification Task\n## Categories\n- Promise — the player commits to a specific future action.\n- Empty talk — chatter without a commitment on any future action."], ["norp", "no role persona", "# General Task\nClassify the text below into one of the categories in the codebook.\n\n# Classification Task\n## Categories\n- Promise — the player commits to a specific future action.\n- Empty talk — chatter without a commitment on any future action."], ["nogt", "no general task", "# Role Persona\nAct as a behavioural economist specialised in strategic communication.\n\n# Classification Task\n## Categories\n- Promise — the player commits to a specific future action.\n- Empty talk — chatter without a commitment on any future action."], ["neither", "neither", "# Classification Task\n## Categories\n- Promise — the player commits to a specific future action.\n- Empty talk — chatter without a commitment on any future action."]];
+
+const root = document.getElementById("frmRoot");
+FRM.forEach(([k, name, body]) => {
+  const p = document.createElement("div");
+  p.className = "panel";
+  p.innerHTML = `<div class="panel-head"><span class="panel-key">${k}</span><span class="panel-name">${name}</span></div><div class="panel-body"></div>`;
+  p.querySelector(".panel-body").textContent = body;
+  root.appendChild(p);
+});
+</script>

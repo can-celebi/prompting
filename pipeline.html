@@ -158,7 +158,13 @@ h1 { padding: 14px 24px; background: #263238; color: #fff; font-size: 1.2em; }
 </head>
 <body>
 
-<h1>Codebook-to-Prompt Pipeline</h1>
+<div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #d8d4cc;padding:14px 20px 12px;margin-bottom:14px;font-family:Inter,-apple-system,sans-serif;">
+  <div>
+    <h1 style="font-family:'Source Serif 4',Georgia,serif;font-size:1.4em;font-weight:600;margin:0;">Codebook-to-Prompt Pipeline</h1>
+    <div style="color:#6b6b6b;font-size:0.9em;font-style:italic;margin-top:2px;">Filter &rarr; separate &rarr; compress. Variations for each experiment live in their own viewer.</div>
+  </div>
+  <a href="index.html" style="color:#6b6b6b;font-size:0.85em;text-decoration:none;border:1px solid #d8d4cc;padding:6px 12px;border-radius:6px;white-space:nowrap;">&larr; companion</a>
+</div>
 
 <div class="task-tabs" id="taskTabs">
     <button class="task-tab active" onclick="switchTask('p1', this)">P_I: Trust Game</button>
@@ -172,7 +178,6 @@ h1 { padding: 14px 24px; background: #263238; color: #fff; font-size: 1.2em; }
     <button class="step-tab" onclick="switchStep(2, this)">Step 2: Filtered</button>
     <button class="step-tab" onclick="switchStep(3, this)">Step 3: Separated</button>
     <button class="step-tab" onclick="switchStep(4, this)">Step 4: Summaries</button>
-    <button class="step-tab" onclick="switchStep(5, this)">Step 5: Assembled</button>
 </div>
 
 <div class="legend">

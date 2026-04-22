@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Examples (n-shot) — Much Ado about Prompting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="page">
+<header class="page-header">
+  <div class="page-header-left">
+    <h1>Examples — $n$-shot</h1>
+    <div class="sub">0-shot prompt vs. the same prompt with worked examples appended.</div>
+  </div>
+  <a class="back-link" href="index.html">← companion</a>
+</header>
+
+<div class="note">
+  Worked examples substitute for content: a <i>minimal</i> prompt plus examples closes the gap to a full codebook. On verbatim, examples top up only slightly.
+</div>
+
+<div class="tabs" id="taskTabs"></div>
+
+<div class="columns two" id="shotRoot"></div>
+
+
+
+<div class="cross-links">
+  <span class="label">related &rarr;</span>
+  <a href="codebooks.html">codebooks</a>
+  <a href="pipeline.html">pipeline</a>
+  <a href="content.html">content</a>
+  <a href="format.html">format</a>
+  <a href="framing.html">framing</a>
+  <a href="nshot.html">examples</a>
+  <a href="shotformat.html">example formatting</a>
+  <a href="fidelity.html">verbose &amp; noise</a>
+  <a href="examples.html">example items</a>
+</div>
+
+</body>
+</html>
+
+<script>
+const DATA  = {"p2": {"zero": "# Classification Task\n## Categories\n- (codebook categories …)\n\n# Classification Coding\n(output labels)", "n": "# Classification Task\n## Categories\n- (codebook categories …)\n\n# Classification Coding\n(output labels)\n\n# Examples\n\n\nParticipant 1: \"all 200 then?\"\n\nParticipant 2: \"yes\"\n\nThe \"yes\" of Participant 2 is a promise.\n\n------------------------------------------------------------------------\n\nParticipant 1: \"Are we all just going to with max?”\n\nParticipant 2: \"agree\"\n\nThe \"agree\" of Participant 2 is a promise.\n\n------------------------------------------------------------------------\n\nIt would not include statements such as\n\nParticipant 1: \"I think it's best if we invest 200\" or\n\nParticipant 1: \"let's do 200\" or\n\nParticipant 1: \"I have been doing 200 in the last round\" or\n\nParticipant 1: \"100 sounds good\".\n\nRather than spelling out numbers such as 200, people might refer to \"max\" or \"all in\".\n\n------------------------------------------------------------------------\n\nIn a particular context, \"let's do it\" may be a promise. For example:\n\nParticipant 1: \"200?\"\n\nParticipant 2: \"let's do it\"\n\nor similarly:\n\nParticipant 1: \"150. player 2 are you in agreement?\"\n\nParticipant 2: \"hi sounds good\"\n\n------------------------------------------------------------------------\n\nIt may include conditional promises (do something if someone else agrees).\n\nFor example, in\n\nParticipant 1: \"happy with 200 if we all agree\"...\n\nParticipant 2: \"cool let's do it\"\n\nParticipant 3: \"Yep.\"\n\nIn this case, all participants 1, 2 and 3 made promises.\n\nBut in\n\nParticipant 1: \"200 each?\"\n\nParticipant 2: \"agree\"\n\nParticipant 3: \"agree\"\n\n  only participants 2 and 3 make a promise, because \"200 each?\" does not make it clear that the first participant *will* do 200 if the others do that as well.\n\n------------------------------------------------------------------------\n\nInitial promises about which people later change their mind do not count:\n\nParticipant 1: \"200\"\n\nParticipant 2: \"agreed\"\n\nParticipant 3: \"I suggest 100\"\n\nParticipant 2: \"I'm happy with either\"\n\nParticipant 2 is not making any promise here.\n\n------------------------------------------------------------------------"}, "l1": {"zero": "# Classification Task\n## Categories\n- (codebook categories …)\n\n# Classification Coding\n(output labels)", "n": "# Classification Task\n## Categories\n- (codebook categories …)\n\n# Classification Coding\n(output labels)\n\n# Examples\nLevel-0:\n\"My favorite color is blue, So I chose blue.\"\n\"did not exactly understand this experiment seems to be just depending on luck\"\n\"Just a guess\"\n\nLevel-1:\n\"The probability that the red ball we observe is out of the red urn is twice the probability that it is out of the blue urn\"\n\"Our signal is blue. Let's play blue.\"\n\nLevel-2:\n\"I have a blue ball. If we have the blue urn, someone else also has a blue ball and as a result our group will chose blue regardless of my vote. If we have the red urn, I am the only one with the blue ball and if I vote blue, we will chose the wrong urn. So I should vote for red.\"\n\"In case two teams choose red and one chooses blue, blue will be taken. That means that choosing red has a higher chance of being a good decision.\"\n\"I guess this is more about luck because there is no way to know it for sure. I would say blue just because of the higher probability. Also I like turtles Also it is likely that one other team will pick blue and then it is that color anyways\"\n\"There is no point for us to take blue I think the chances for us to get the right color are higher if we stick with red\" [red ball is observed]\n\"I suggest red because we don't hurt anyone with this decision If the others go for blue because they have a blue ball, the committee's decision will be blue regardless of our decision\"\n\"[...] we could be the deciding vote for blue if the other two choose red\" \"Choosing blue isn't as helpful as choosing red, because: only one blue ball can overturn our whole decision but only a unanimous decision for red can help us the same way\"\n\nLevel-3:\n\"If everyone else assumes others play their own signal then they will always play red. Since I have the blue ball, it is more likely that we have the blue urn so I will vote blue\"\n\"I think it's all the same rule. Since I have the blue ball, it is more likely that we have the blue urn so I will vote blue\""}, "l2": {"zero": "# Classification Task\n## Categories\n- (codebook categories …)\n\n# Classification Coding\n(output labels)", "n": "# Classification Task\n## Categories\n- (codebook categories …)\n\n# Classification Coding\n(output labels)\n\n# Examples\nLevel 0:\n\"Well, it's a pure guess\"\n\"There are no arguments. Simply choose any.\"\n\nLevel 1:\n\"They are probably picking X, so we do as well\"\n\"The other team would naturally go for the visual distinctive bottom slice, no?\"\n\nLevel 2:\n\"The other team may think we are most attracted to the alternative # with the highest payoff. In order to coordinate our behavior we should also choose the # slice.\""}};
+const TASKS = {"p2": "Promise (public goods)", "l1": "Level-k I (voting)", "l2": "Level-k II (coordination)"};
+
+const tabs = document.getElementById("taskTabs");
+Object.entries(TASKS).forEach(([tid, name], i) => {
+  const b = document.createElement("button");
+  b.className = "tab" + (i === 0 ? " active" : "");
+  b.textContent = name; b.dataset.task = tid;
+  b.addEventListener("click", () => render(tid));
+  tabs.appendChild(b);
+});
+
+function render(tid) {
+  document.querySelectorAll("#taskTabs .tab").forEach(b => b.classList.toggle("active", b.dataset.task === tid));
+  const root = document.getElementById("shotRoot");
+  root.innerHTML = "";
+  [["zero", "0-shot (no examples)"], ["n", "$n$-shot (with examples)"]].forEach(([k, n]) => {
+    const p = document.createElement("div");
+    p.className = "panel";
+    p.innerHTML = `<div class="panel-head"><span class="panel-key">${k === "zero" ? "0" : "n"}</span><span class="panel-name">${n}</span></div><div class="panel-body"></div>`;
+    p.querySelector(".panel-body").textContent = DATA[tid][k];
+    root.appendChild(p);
+  });
+}
+render("p2");
+</script>

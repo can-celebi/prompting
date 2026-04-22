@@ -1,0 +1,181 @@
+/* Shared styles across all companion pages */
+
+:root {
+  --bg: #f7f5f0;
+  --ink: #1c1c1c;
+  --muted: #6b6b6b;
+  --line: #d8d4cc;
+  --accent: #1a3a5f;
+  --accent-light: #e8eef5;
+  --card-bg: #ffffff;
+  --code-bg: #fcfcfa;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Page layout: full-width header + content */
+.page {
+  padding: 24px 32px 56px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+  margin-bottom: 22px;
+}
+
+.page-header h1 {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 1.45em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.page-header .sub {
+  color: var(--muted);
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.page-header-left { flex: 1; }
+
+.back-link {
+  color: var(--muted);
+  font-size: 0.85em;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  white-space: nowrap;
+  margin-left: 20px;
+}
+.back-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.tab {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88em;
+  color: #555;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.tab:hover { border-color: var(--accent); color: var(--accent); }
+.tab.active {
+  background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 500;
+}
+
+/* Cards / panels */
+.panel {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.panel-head {
+  background: #f0ede5;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.panel-key { font-weight: 600; font-size: 0.9em; color: var(--accent); }
+.panel-name { font-size: 0.78em; color: var(--muted); font-style: italic; }
+.panel-body {
+  padding: 14px 18px;
+  font-family: "SFMono-Regular", Consolas, "Courier New", monospace;
+  font-size: 0.78em;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  color: #333;
+  background: var(--code-bg);
+  max-height: 520px;
+  overflow-y: auto;
+}
+.panel-body.plain {
+  font-family: inherit;
+  font-size: 0.92em;
+  white-space: normal;
+}
+
+/* 2-column or 3-column comparative layout */
+.columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 900px) {
+  .columns.two { grid-template-columns: 1fr 1fr; }
+  .columns.three { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+/* Cross-links footer strip */
+.cross-links {
+  margin-top: 36px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.82em;
+}
+.cross-links a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  transition: all 0.15s;
+}
+.cross-links a:hover { color: var(--accent); border-color: var(--accent); }
+.cross-links .label { color: var(--muted); padding: 4px 4px; font-style: italic; }
+
+/* Simple role header (for multi-turn examples) */
+.multi-turn-msg {
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+.multi-turn-user { background: #e8eef5; }
+.multi-turn-asst { background: #eef5e8; }
+.role { font-weight: 600; color: #555; margin-right: 6px; }
+
+/* Info banner */
+.note {
+  background: #fff8e1;
+  border: 1px solid #f0e0a0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 0.88em;
+  color: #6b5a20;
+  margin-bottom: 18px;
+}

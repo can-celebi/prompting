@@ -3,46 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Much Ado about Prompting — Companion materials</title>
+<title>Using LLMs for Classification of Text Messages from Experiments — Companion</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 <style>
-  :root {
-    --bg: #f7f5f0;
-    --ink: #1c1c1c;
-    --muted: #6b6b6b;
-    --line: #d8d4cc;
-    --accent: #1a3a5f;
-    --accent-light: #e8eef5;
-    --card-bg: #ffffff;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
+  /* Landing-page specific styles (centered layout, card grid) */
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: var(--bg);
-    color: var(--ink);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 32px 20px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
   }
+  .wrap { max-width: 1080px; width: 100%; text-align: center; }
 
-  .wrap {
-    max-width: 860px;
-    width: 100%;
-    text-align: center;
-  }
-
-  .header {
-    margin-bottom: 56px;
-  }
+  .header { margin-bottom: 42px; }
   h1 {
     font-family: 'Source Serif 4', Georgia, serif;
-    font-size: 2.4em;
+    font-size: 2.0em;
     font-weight: 600;
     letter-spacing: -0.02em;
     margin-bottom: 10px;
@@ -51,59 +30,53 @@
   .subtitle {
     font-family: 'Source Serif 4', Georgia, serif;
     font-style: italic;
-    font-size: 1.15em;
+    font-size: 1.05em;
     color: var(--muted);
     margin-bottom: 18px;
   }
-  .authors {
-    font-size: 0.92em;
-    color: var(--muted);
-    letter-spacing: 0.02em;
-  }
-  .authors a {
-    color: var(--ink);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.15s;
-  }
+  .authors { font-size: 0.9em; color: var(--muted); letter-spacing: 0.02em; }
+  .authors a { color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.15s; }
   .authors a:hover { border-color: var(--ink); }
+
+  .section-heading {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 0.88em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 36px 0 14px;
+    text-align: left;
+  }
+  .section-heading:first-of-type { margin-top: 12px; }
 
   .grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 18px;
+    gap: 16px;
   }
-  @media (min-width: 700px) {
-    .grid { grid-template-columns: repeat(2, 1fr); gap: 22px; }
-  }
-  @media (min-width: 1100px) {
-    .grid { grid-template-columns: repeat(3, 1fr); gap: 22px; }
-  }
+  @media (min-width: 720px)  { .grid { grid-template-columns: repeat(2, 1fr); gap: 18px; } }
+  @media (min-width: 1000px) { .grid { grid-template-columns: repeat(3, 1fr); gap: 18px; } }
 
   .card {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: 32px 22px 28px;
+    padding: 26px 20px 22px;
     background: var(--card-bg);
     border: 1px solid var(--line);
     border-radius: 12px;
     text-decoration: none;
     color: var(--ink);
     transition: all 0.2s ease;
-    min-height: 220px;
+    min-height: 180px;
     position: relative;
     overflow: hidden;
   }
   .card::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0;
-    width: 100%; height: 3px;
-    background: var(--accent);
-    transform: translateY(3px);
-    transition: transform 0.2s ease;
+    content: ''; position: absolute; bottom: 0; left: 0;
+    width: 100%; height: 3px; background: var(--accent);
+    transform: translateY(3px); transition: transform 0.2s ease;
   }
   .card:hover {
     border-color: var(--accent);
@@ -113,93 +86,74 @@
   .card:hover::after { transform: translateY(0); }
 
   .icon {
-    width: 56px; height: 56px;
+    width: 48px; height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--accent-light);
     border-radius: 50%;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
   }
   .icon svg {
-    width: 26px; height: 26px;
-    stroke: var(--accent);
-    fill: none;
+    width: 22px; height: 22px;
+    stroke: var(--accent); fill: none;
     stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
 
-  .label {
-    font-weight: 600;
-    font-size: 1.05em;
-    margin-bottom: 8px;
-    letter-spacing: -0.01em;
-  }
-  .desc {
-    font-size: 0.85em;
-    color: var(--muted);
-    line-height: 1.5;
-    flex-grow: 1;
-  }
+  .label { font-weight: 600; font-size: 1.0em; margin-bottom: 6px; letter-spacing: -0.01em; }
+  .desc  { font-size: 0.82em; color: var(--muted); line-height: 1.5; flex-grow: 1; }
   .badge {
-    margin-top: 14px;
-    padding: 4px 10px;
-    background: var(--accent-light);
-    color: var(--accent);
-    border-radius: 20px;
-    font-size: 0.72em;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    margin-top: 12px; padding: 3px 9px;
+    background: var(--accent-light); color: var(--accent);
+    border-radius: 16px; font-size: 0.68em; font-weight: 500;
+    letter-spacing: 0.04em; text-transform: uppercase;
   }
 
-  footer {
-    margin-top: 48px;
-    font-size: 0.78em;
-    color: var(--muted);
-  }
-  footer .id {
-    font-family: 'Source Serif 4', Georgia, serif;
-    font-style: italic;
-  }
+  footer { margin-top: 44px; font-size: 0.78em; color: var(--muted); }
+  footer .id { font-family: 'Source Serif 4', Georgia, serif; font-style: italic; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="header">
-    <h1>Much Ado about Prompting</h1>
-    <div class="subtitle">Text Classification in Experimental Economics</div>
+    <h1>Using LLMs for Classification of Text Messages from Experiments</h1>
+    <div class="subtitle">Companion materials</div>
     <div class="authors">
       Can &Ccedil;elebi &nbsp;&middot;&nbsp; Stefan&nbsp;P. Penczynski
     </div>
   </div>
 
+  <div class="section-heading">Presentation</div>
   <div class="grid">
     <a class="card" href="presentation.pdf" download>
       <div class="icon">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
       </div>
       <div class="label">Presentation</div>
-      <div class="desc">Full slides walking through motivation, design and the main findings.</div>
+      <div class="desc">Slides walking through motivation, design and the main findings.</div>
       <div class="badge">PDF</div>
     </a>
+  </div>
 
-    <a class="card" href="presentation-short.pdf" download>
+  <div class="section-heading">Codebooks &amp; pipeline</div>
+  <div class="grid">
+    <a class="card" href="codebooks.html">
       <div class="icon">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       </div>
-      <div class="label">Short version</div>
-      <div class="desc">Condensed deck: headline result, findings and practical implications.</div>
-      <div class="badge">PDF</div>
+      <div class="label">Codebooks</div>
+      <div class="desc">The three original codebooks as written for human annotators.</div>
+      <div class="badge">Interactive</div>
     </a>
 
     <a class="card" href="pipeline.html">
       <div class="icon">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="10" y1="6.5" x2="14" y2="6.5"/><line x1="6.5" y1="10" x2="6.5" y2="14"/><line x1="17.5" y1="10" x2="17.5" y2="14"/></svg>
       </div>
-      <div class="label">Pipeline viewer</div>
-      <div class="desc">Codebook&nbsp;&rarr;&nbsp;prompt: filter, separate, compress, assemble &mdash; for all four tasks.</div>
+      <div class="label">Pipeline</div>
+      <div class="desc">Codebook &rarr; filter &rarr; separate &rarr; compress. The four-step transformation.</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -208,7 +162,46 @@
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
       </div>
       <div class="label">Prompt assembly</div>
-      <div class="desc">Build any prompt variant interactively: pick task, content level, format, examples and more.</div>
+      <div class="desc">Build any prompt variant interactively: pick every dimension at once.</div>
+      <div class="badge">Interactive</div>
+    </a>
+  </div>
+
+  <div class="section-heading">By experiment</div>
+  <div class="grid">
+    <a class="card" href="content.html">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
+      </div>
+      <div class="label">Content</div>
+      <div class="desc">Classification, experiment and theory sections at varying compression levels.</div>
+      <div class="badge">Interactive</div>
+    </a>
+
+    <a class="card" href="format.html">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16v4H4z"/><path d="M4 12h10"/><path d="M4 18h14"/></svg>
+      </div>
+      <div class="label">Format</div>
+      <div class="desc">Markdown, plain titles, prose, bulleted list &mdash; five tested formats.</div>
+      <div class="badge">Interactive</div>
+    </a>
+
+    <a class="card" href="framing.html">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18"/><path d="M16 3v18"/></svg>
+      </div>
+      <div class="label">Framing</div>
+      <div class="desc">Role persona and general-task line &mdash; tested by ablation.</div>
+      <div class="badge">Interactive</div>
+    </a>
+
+    <a class="card" href="nshot.html">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="17.5" x2="21" y2="17.5"/><line x1="17.5" y1="14" x2="17.5" y2="21"/></svg>
+      </div>
+      <div class="label">Examples ($n$-shot)</div>
+      <div class="desc">0-shot vs. the same prompt with worked examples appended.</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -217,7 +210,7 @@
         <svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h13"/><circle cx="20" cy="12" r="1.6"/><circle cx="20" cy="18" r="1.6"/></svg>
       </div>
       <div class="label">Example formatting</div>
-      <div class="desc">The same worked examples in five presentation styles: markdown, XML, delimiter, arrow, multi-turn.</div>
+      <div class="desc">The same worked examples in five styles: markdown, XML, delimiter, arrow, multi-turn.</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -226,10 +219,13 @@
         <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/><circle cx="8" cy="6" r="1.6" fill="currentColor"/><circle cx="14" cy="12" r="1.6" fill="currentColor"/><circle cx="11" cy="18" r="1.6" fill="currentColor"/></svg>
       </div>
       <div class="label">Verbose &amp; noise</div>
-      <div class="desc">Verbatim sections side-by-side with verbose elaborations and matched-length noise.</div>
+      <div class="desc">Verbatim sections alongside verbose elaborations and matched-length noise.</div>
       <div class="badge">Interactive</div>
     </a>
+  </div>
 
+  <div class="section-heading">Model outputs</div>
+  <div class="grid">
     <a class="card" href="examples.html">
       <div class="icon">
         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
@@ -241,7 +237,7 @@
   </div>
 
   <footer>
-    <span class="id">Much Ado about Prompting</span>
+    <span class="id">Using LLMs for Classification of Text Messages from Experiments</span>
   </footer>
 </div>
 </body>
