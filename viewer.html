@@ -125,14 +125,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <div class="control-group">
             <label>Task</label>
             <div class="btn-group" id="task-btns">
-                <button data-val="p1" class="active">P_I</button>
-                <button data-val="p2">P_II</button>
+                <button data-val="p2" class="active">Promise</button>
                 <button data-val="l1">L_I</button>
                 <button data-val="l2">L_II</button>
             </div>
         </div>
-
-        <h2>Content Ablation</h2>
 
         <div class="control-group">
             <label>Experiment Context</label>
@@ -140,7 +137,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
                 <button data-val="V" class="active">V</button>
                 <button data-val="C1">C1</button>
                 <button data-val="C2">C2</button>
-                <button data-val="C3">C3</button>
                 <button data-val="N">N</button>
             </div>
         </div>
@@ -162,8 +158,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
                 <button data-val="S">S</button>
             </div>
         </div>
-
-        <h2>Experiment B+</h2>
 
         <div class="control-group">
             <label>Format</label>
@@ -514,19 +508,18 @@ const PIPELINE = {
 
 // Task config: which levels are available for Exp A
 const TASK_CONFIG = {
-    p1: { hasTheory: false, expLevels: ['V','C1','C3'], clsLevels: ['V','S'], label: 'P_I \u2014 Trust Game Promise', schema: 'p1_promise' },
-    p2: { hasTheory: false, expLevels: ['V','C1','C3'], clsLevels: ['V','S'], label: 'P_II \u2014 Public Goods Promise', schema: 'p2_promise' },
-    l1: { hasTheory: true,  expLevels: ['V','C1','C2'], clsLevels: ['V','S'], theoryLevels: ['V','C1','C2'], label: 'L_I \u2014 Voting Level-k', schema: 'l1_level' },
-    l2: { hasTheory: true,  expLevels: ['V','C1','C2'], clsLevels: ['V','S'], theoryLevels: ['V','C1','C2'], label: 'L_II \u2014 Coordination Level-k', schema: 'l2_level' },
+    p2: { hasTheory: false, expC2: 'c3', clsLevels: ['V','S'], label: 'Promise \u2014 Public Goods', schema: 'p2_promise' },
+    l1: { hasTheory: true,  expC2: 'c2', theoryC2: 'c2', clsLevels: ['V','S'], label: 'L_I \u2014 Voting Level-k', schema: 'l1_level' },
+    l2: { hasTheory: true,  expC2: 'c2', theoryC2: 'c2', clsLevels: ['V','S'], label: 'L_II \u2014 Coordination Level-k', schema: 'l2_level' },
 };
 
-const TASK_TITLES = { p1: 'P_I \u2014 Trust Game Promise Classification', p2: 'P_II \u2014 Public Goods Promise Classification', l1: 'L_I \u2014 Voting Game Level-k Classification', l2: 'L_II \u2014 Coordination Game Level-k Classification' };
+const TASK_TITLES = { p2: 'Promise \u2014 Public Goods Classification', l1: 'L_I \u2014 Voting Game Level-k Classification', l2: 'L_II \u2014 Coordination Game Level-k Classification' };
 
 // =========================================================================
 // STATE
 // =========================================================================
 
-let state = { task: 'p1', exp: 'V', theory: 'V', cls: 'V', fmt: 'ml', frm: 'full', shot: '0' };
+let state = { task: 'p2', exp: 'V', theory: 'V', cls: 'V', fmt: 'ml', frm: 'full', shot: '0' };
 
 // =========================================================================
 // UI LOGIC
@@ -554,36 +547,7 @@ setupBtnGroup('shot-btns', 'shot');
 
 function updateButtonStates() {
     const cfg = TASK_CONFIG[state.task];
-
-    // Theory group visibility
     document.getElementById('theory-group').style.display = cfg.hasTheory ? '' : 'none';
-
-    // Exp buttons: enable only available levels + N
-    document.querySelectorAll('#exp-btns button').forEach(btn => {
-        const v = btn.dataset.val;
-        const available = v === 'N' || cfg.expLevels.includes(v);
-        btn.classList.toggle('disabled', !available);
-        if (!available && btn.classList.contains('active')) {
-            btn.classList.remove('active');
-            state.exp = cfg.expLevels[0];
-            document.querySelector(`#exp-btns button[data-val="${state.exp}"]`).classList.add('active');
-        }
-    });
-
-    // Theory buttons
-    if (cfg.hasTheory) {
-        const tLevels = cfg.theoryLevels || [];
-        document.querySelectorAll('#theory-btns button').forEach(btn => {
-            const v = btn.dataset.val;
-            const available = v === 'N' || tLevels.includes(v);
-            btn.classList.toggle('disabled', !available);
-            if (!available && btn.classList.contains('active')) {
-                btn.classList.remove('active');
-                state.theory = tLevels[0];
-                document.querySelector(`#theory-btns button[data-val="${state.theory}"]`).classList.add('active');
-            }
-        });
-    }
 }
 
 function getVariantId() {
@@ -609,7 +573,9 @@ function assemblePrompt() {
     const hasTheory = cfg.hasTheory && state.theory !== 'N';
     const includeExamples = state.shot !== '0';
 
-    const levelMap = { V: 'v', C1: 'c1', C2: 'c2', C3: 'c3' };
+    // Map UI "C2" to the task's actual heaviest-compression variant.
+    const expMap    = { V: 'v', C1: 'c1', C2: cfg.expC2 || 'c2' };
+    const theoryMap = { V: 'v', C1: 'c1', C2: cfg.theoryC2 || 'c2' };
 
     const sections = [];
 
@@ -627,12 +593,12 @@ function assemblePrompt() {
     if (hasExp || hasTheory) {
         let contextContent = '';
         if (hasExp) {
-            const key = `exp_${levelMap[state.exp]}`;
+            const key = `exp_${expMap[state.exp]}`;
             const text = PIPELINE[task][key] || '(content not found)';
             sections.push({ id: 'experiment', title: '## Experiment', parentTitle: '# Context', content: text });
         }
         if (hasTheory) {
-            const key = `theory_${levelMap[state.theory]}`;
+            const key = `theory_${theoryMap[state.theory]}`;
             const text = PIPELINE[task][key] || '(content not found)';
             sections.push({ id: 'theory', title: '## Theory', content: text });
         }
@@ -837,11 +803,13 @@ function updateUI() {
         // Structured view with color-coded sections
         document.getElementById('prompt-content').innerHTML = renderPrompt(sections);
     } else {
-        // Formatted text view — show the actual transformed output
+        // Non-ml formats: show the actual transformed text verbatim (what the LLM sees).
+        // Pre-formatted monospace; no markdown post-processing.
+        const esc = escapeHtml(formattedText);
         document.getElementById('prompt-content').innerHTML =
-            '<div class="section" data-section="general-task">' +
-            renderMarkdown(formattedText) +
-            '</div>';
+            '<pre style="white-space:pre-wrap;font-family:SFMono-Regular,Consolas,monospace;font-size:13px;line-height:1.6;color:#c9d1d9;margin:0;">' +
+            esc +
+            '</pre>';
     }
     document.getElementById('variant-id').textContent = variantId;
     document.getElementById('prompt-title').textContent = TASK_TITLES[state.task];

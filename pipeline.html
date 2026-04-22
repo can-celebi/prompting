@@ -167,8 +167,7 @@ h1 { padding: 14px 24px; background: #263238; color: #fff; font-size: 1.2em; }
 </div>
 
 <div class="task-tabs" id="taskTabs">
-    <button class="task-tab active" onclick="switchTask('p1', this)">P_I: Trust Game</button>
-    <button class="task-tab" onclick="switchTask('p2', this)">P_II: Public Good</button>
+    <button class="task-tab active" onclick="switchTask('p2', this)">Promise</button>
     <button class="task-tab" onclick="switchTask('l1', this)">L_I: Voting Game</button>
     <button class="task-tab" onclick="switchTask('l2', this)">L_II: Coordination</button>
 </div>
@@ -2999,7 +2998,7 @@ function escapeRegex(s) {
 }
 
 // ===== UI STATE =====
-let currentTask = 'p1';
+let currentTask = 'p2';
 let currentStep = 1;
 let diffToggleCounter = 0;
 let step5Format = 'ml';
