@@ -52,8 +52,11 @@ body {
 
 .page-header-left { flex: 1; }
 
-.back-link {
-  color: var(--muted);
+.header-actions {
+  display: flex; gap: 8px; margin-left: 20px; flex-shrink: 0;
+}
+
+.back-link, .pdf-link {
   font-size: 0.85em;
   text-decoration: none;
   border: 1px solid var(--line);
@@ -61,13 +64,19 @@ body {
   border-radius: 6px;
   transition: all 0.15s;
   white-space: nowrap;
-  margin-left: 20px;
 }
+.back-link { color: var(--muted); }
 .back-link:hover {
   color: var(--accent);
   border-color: var(--accent);
   background: var(--accent-light);
 }
+.pdf-link {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.pdf-link:hover { background: #254e7a; border-color: #254e7a; }
 
 /* Tabs */
 .tabs {
