@@ -43,6 +43,14 @@ h1 { padding: 14px 24px; background: #263238; color: #fff; font-size: 1.2em; }
 }
 .removed.expanded { max-height: none; }
 .removed.expanded::after { content: "− click to collapse"; }
+
+/* Step 2 diff panes: fixed-height, independently scrollable — no collapse */
+.step2-pane {
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+    cursor: default !important;
+}
+.step2-pane::after, .step2-pane.expanded::after { content: none !important; }
 .removed .strike { text-decoration: line-through; color: #c62828; background: #ffcdd2; }
 .kept { background: #e8f5e9; border-left: 4px solid #43a047; }
 .section-experiment { background: #e3f2fd; border-left: 4px solid #1e88e5; }
@@ -3242,11 +3250,11 @@ function render() {
         html += '<div class="side-by-side">';
         html += '<div>';
         html += '<span class="label label-removed">ORIGINAL (removed = red strikethrough, kept = green)</span>';
-        html += '<div class="codebook-block removed">' + leftHtml + '</div>';
+        html += '<div class="codebook-block removed step2-pane">' + leftHtml + '</div>';
         html += '</div>';
         html += '<div>';
         html += '<span class="label label-kept">FILTERED (shared = green, reframed = blue)</span>';
-        html += '<div class="codebook-block kept">' + rightHtml + '</div>';
+        html += '<div class="codebook-block kept step2-pane">' + rightHtml + '</div>';
         html += '</div>';
         html += '</div>';
         const origWc = origWords.length;
