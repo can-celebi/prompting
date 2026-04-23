@@ -3020,6 +3020,49 @@ function normalizeLine(line) {
     return line.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// PDF-extracted text uses hard wraps + hyphen breaks (e.g. "Ev-\n\nery team"),
+// while filtered text is reflowed clean prose. Reconstitute joins wrapped lines
+// and de-hyphenates so both sides have comparable line structure.
+function isHeadingLine(s) {
+    const t = s.trim();
+    if (!t) return false;
+    if (/^#/.test(t)) return true;                        // markdown heading
+    if (/^-{3,}$/.test(t) || /^={3,}$/.test(t)) return true; // rule
+    if (/^\d+[.)]\s/.test(t)) return true;                // "1) " or "1. "
+    if (/^[a-z]\.\s/.test(t)) return true;                // "a. "
+    if (/^[-*]\s/.test(t)) return true;                   // bullet
+    if (t.length < 60 && /^[A-Z][A-Z0-9 \-,:]+$/.test(t)) return true; // ALL-CAPS heading
+    return false;
+}
+function endsInSentenceFinal(s) { return /[.!?:;]\s*["'”’]?\s*$/.test(s.trim()); }
+
+function reconstitute(text) {
+    const paras = text.split(/\n\s*\n/);
+    const out = [];
+    for (let p of paras) {
+        p = p.replace(/^\s+|\s+$/g, '');
+        if (!p) continue;
+        // Join internal single-newline wraps and hyphen-wraps within this block.
+        p = p.replace(/([A-Za-z])-\s*\n\s*([a-z])/g, '$1$2');
+        p = p.replace(/\s*\n\s*/g, ' ');
+        if (out.length === 0) { out.push(p); continue; }
+        const prev = out[out.length - 1];
+        const startsLower = /^[a-z]/.test(p);
+        const endsHyphen  = /[A-Za-z]-$/.test(prev);
+        if (endsHyphen && startsLower) {
+            out[out.length - 1] = prev.slice(0, -1) + p;
+            continue;
+        }
+        // If prev doesn't end a sentence and next continues lowercase, treat as PDF-wrap.
+        if (!isHeadingLine(prev) && !isHeadingLine(p) && !endsInSentenceFinal(prev) && startsLower) {
+            out[out.length - 1] = prev + ' ' + p;
+            continue;
+        }
+        out.push(p);
+    }
+    return out.join('\n\n');
+}
+
 // Line-level LCS: two lines are considered equal iff their normalized form matches.
 // Robust against dialogue text with many short repeated-looking lines — a line that
 // appears verbatim on the other side is always green, never stranded as red.
@@ -3070,8 +3113,11 @@ function renderGapHTML(origGapLines, filtGapLines) {
 
 // Line-anchored diff: verbatim lines are wholly green; edits within gaps word-diffed locally.
 function renderStep2Diff(origText, filtText) {
-    const origLines = origText.split('\n');
-    const filtLines = filtText.split('\n');
+    // Reconstitute PDF-wrap artifacts first so both sides have comparable structure.
+    const origClean = reconstitute(origText);
+    const filtClean = reconstitute(filtText);
+    const origLines = origClean.split('\n');
+    const filtLines = filtClean.split('\n');
     const { matchO, matchF } = lineLCS(origLines, filtLines);
 
     // Walk both sides in lockstep, flushing gaps (runs of unmatched lines) whenever
