@@ -3200,39 +3200,41 @@ function lineAlign(origLines, filtLines) {
     return { matchO, matchF };
 }
 
-// Step 2 diff: reconstituted flowing prose on both sides (hard wraps joined, only real
-// paragraph breaks kept). Matched paragraphs still get word-level coloring so edits
-// within a paragraph (dropped parentheticals, reworded phrases) show as red/blue while
-// preserved words stay green. Unmatched paragraphs render fully red/blue.
+// Step 2 diff: global word-level LCS across the full reconstituted text on each side,
+// then color each word by LCS membership. Avoids the paragraph-alignment fragility —
+// identical passages stay green regardless of how blank lines / indentation differ
+// between the two versions. Paragraphs are displayed separately for layout but
+// coloring is decided globally.
 function renderStep2Diff(origText, filtText) {
     const oMap = reconstituteWithMap(origText);
     const fMap = reconstituteWithMap(filtText);
-    const { matchO, matchF } = lineAlign(oMap.cleanLines, fMap.cleanLines);
 
-    const renderWordColored = (text, inLCS, cssInLCS, cssNotInLCS) => {
-        const words = tokenize(text);
-        let out = '';
-        for (let w = 0; w < words.length; w++) {
-            const cls = inLCS.has(w) ? cssInLCS : cssNotInLCS;
-            out += '<span class="' + cls + '">' + esc(words[w]) + '</span> ';
+    // Flatten each side's clean-line words into a single token sequence, remembering
+    // which clean-line each token came from so we can render back in paragraph form.
+    const flatten = (map) => {
+        const tokens = [];            // flat array of raw word strings
+        const blockRanges = [];       // per clean-line, [startFlatIdx, endFlatIdx)
+        for (let ci = 0; ci < map.cleanLines.length; ci++) {
+            const start = tokens.length;
+            const words = tokenize(map.cleanLines[ci]);
+            for (const w of words) tokens.push(w);
+            blockRanges.push([start, tokens.length]);
         }
-        return out;
+        return { tokens, blockRanges };
     };
+    const oFlat = flatten(oMap);
+    const fFlat = flatten(fMap);
 
-    const renderSide = (myMap, partnerMap, myMatch, colorUnmatched, isOrig) => {
+    const { inLCS_A, inLCS_B } = computeLCS(oFlat.tokens, fFlat.tokens);
+
+    const renderSide = (flat, inLCS, colorUnmatched) => {
         let html = '';
-        for (let ci = 0; ci < myMap.cleanLines.length; ci++) {
-            const line = myMap.cleanLines[ci];
-            let inner;
-            if (myMatch.has(ci)) {
-                const partnerLine = partnerMap.cleanLines[myMatch.get(ci)];
-                const aTokens = isOrig ? tokenize(line) : tokenize(partnerLine);
-                const bTokens = isOrig ? tokenize(partnerLine) : tokenize(line);
-                const { inLCS_A, inLCS_B } = computeLCS(aTokens, bTokens);
-                const mySet = isOrig ? inLCS_A : inLCS_B;
-                inner = renderWordColored(line, mySet, 'w-kept', colorUnmatched);
-            } else {
-                inner = '<span class="' + colorUnmatched + '">' + esc(line) + '</span>';
+        for (let ci = 0; ci < flat.blockRanges.length; ci++) {
+            const [s, e] = flat.blockRanges[ci];
+            let inner = '';
+            for (let k = s; k < e; k++) {
+                const cls = inLCS.has(k) ? 'w-kept' : colorUnmatched;
+                inner += '<span class="' + cls + '">' + esc(flat.tokens[k]) + '</span> ';
             }
             html += '<div class="diff-line">' + inner + '</div>\n';
             html += '<div class="diff-blank"></div>\n';
@@ -3240,8 +3242,8 @@ function renderStep2Diff(origText, filtText) {
         return html;
     };
     return {
-        leftHtml:  renderSide(oMap, fMap, matchO, 'w-removed', true),
-        rightHtml: renderSide(fMap, oMap, matchF, 'w-new',     false),
+        leftHtml:  renderSide(oFlat, inLCS_A, 'w-removed'),
+        rightHtml: renderSide(fFlat, inLCS_B, 'w-new'),
     };
 }
 
