@@ -3341,10 +3341,10 @@ function render() {
         html += '<h3>Step 2: Manual Filtering (word-level diff)</h3>';
         html += '<p style="margin-bottom:8px; font-size:0.85em; color:#666;">Procedural content irrelevant to the LLM is removed. Word-level LCS diff shows exactly which words were cut (red/strikethrough) and kept (green). Right panel shows shared words (green) and any reframed/new words (blue).</p>';
 
-        const { leftHtml, rightHtml, origWc: _origWc, filtWc: _filtWc } =
-            renderStep2Diff(task.step2.original, task.step2.filtered);
+        const { leftHtml, rightHtml } = renderStep2Diff(task.step2.original, task.step2.filtered);
         const origWords = tokenize(task.step2.original);
         const filtWords = tokenize(task.step2.filtered);
+        const { lcsLen } = computeLCS(origWords, filtWords);
 
         html += '<div class="side-by-side">';
         html += '<div>';
