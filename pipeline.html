@@ -2935,18 +2935,27 @@ function tokenizeWithLines(text) {
     return result;
 }
 
+// Normalize token for comparison: lowercase + strip all non-alphanumeric.
+// So "game.", "game", "**game**", "(game)" all compare equal.
+function normTok(w) {
+    return w.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 function computeLCS(a, b) {
     if (!a || !b || a.length === 0 || b.length === 0) {
         return { lcsLen: 0, inLCS_A: new Set(), inLCS_B: new Set() };
     }
     const m = a.length, n = b.length;
+    const aN = a.map(normTok);
+    const bN = b.map(normTok);
     const dp = [];
     for (let i = 0; i <= m; i++) {
         dp[i] = new Uint16Array(n + 1);
     }
     for (let i = 1; i <= m; i++) {
         for (let j = 1; j <= n; j++) {
-            if (a[i-1].toLowerCase() === b[j-1].toLowerCase()) {
+            // Only count real word matches (skip pure-punctuation tokens here — handled below).
+            if (aN[i-1].length > 0 && aN[i-1] === bN[j-1]) {
                 dp[i][j] = dp[i-1][j-1] + 1;
             } else {
                 dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);
@@ -2957,7 +2966,7 @@ function computeLCS(a, b) {
     const inLCS_B = new Set();
     let i = m, j = n;
     while (i > 0 && j > 0) {
-        if (a[i-1].toLowerCase() === b[j-1].toLowerCase()) {
+        if (aN[i-1].length > 0 && aN[i-1] === bN[j-1]) {
             inLCS_A.add(i-1);
             inLCS_B.add(j-1);
             i--; j--;
@@ -2967,6 +2976,10 @@ function computeLCS(a, b) {
             j--;
         }
     }
+    // Treat pure-punctuation / formatting tokens (##, **, —, |, etc.) as "kept" so
+    // formatting differences never render as red/blue noise.
+    for (let k = 0; k < m; k++) if (aN[k].length === 0) inLCS_A.add(k);
+    for (let k = 0; k < n; k++) if (bN[k].length === 0) inLCS_B.add(k);
     return { lcsLen: dp[m][n], inLCS_A, inLCS_B };
 }
 
