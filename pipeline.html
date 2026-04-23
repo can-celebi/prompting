@@ -3053,9 +3053,15 @@ function isStandaloneLine(line) {
     if (/^\d+[.)]\s/.test(t)) return true;        // "1) " or "1. "
     if (/^[a-z]\.\s/.test(t)) return true;        // "a. "
     if (/^[A-Z][A-Z0-9 \-,:]{2,}$/.test(t) && t.length < 60) return true; // ALL-CAPS label
+    // Line ending with ":" — in PDF-extracted codebook text this is almost always a
+    // heading/sub-heading introducing what follows (e.g. "n = 3 or n = 6 and with
+    // replacement:" or "When the blue ball is observed, optimal strategy for:").
+    // Treating as standalone keeps granularity symmetric whether or not the source
+    // happened to put a blank line after.
+    if (t.length < 120 && /:$/.test(t)) return true;
     // Short Title Case heading: all significant words start with an uppercase letter,
     // no sentence-final punctuation.
-    if (t.length < 70 && /^[A-Z][A-Za-z0-9\-\s]*$/.test(t) && !/[.!?;,:]$/.test(t)) {
+    if (t.length < 70 && /^[A-Z][A-Za-z0-9\-\s]*$/.test(t) && !/[.!?;,]$/.test(t)) {
         const small = new Set(['of','the','a','an','and','or','in','on','at','to','for','with','vs','by','as','is','de']);
         const words = t.split(/\s+/);
         if (words.length <= 8) {
