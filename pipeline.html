@@ -3036,132 +3036,139 @@ function isHeadingLine(s) {
 }
 function endsInSentenceFinal(s) { return /[.!?:;]\s*["'”’]?\s*$/.test(s.trim()); }
 
-function reconstitute(text) {
-    const paras = text.split(/\n\s*\n/);
-    const out = [];
-    for (let p of paras) {
-        p = p.replace(/^\s+|\s+$/g, '');
-        if (!p) continue;
-        // Join internal single-newline wraps and hyphen-wraps within this block.
-        p = p.replace(/([A-Za-z])-\s*\n\s*([a-z])/g, '$1$2');
-        p = p.replace(/\s*\n\s*/g, ' ');
-        if (out.length === 0) { out.push(p); continue; }
-        const prev = out[out.length - 1];
-        const startsLower = /^[a-z]/.test(p);
-        const endsHyphen  = /[A-Za-z]-$/.test(prev);
-        if (endsHyphen && startsLower) {
-            out[out.length - 1] = prev.slice(0, -1) + p;
-            continue;
-        }
-        // If prev doesn't end a sentence and next continues lowercase, treat as PDF-wrap.
-        if (!isHeadingLine(prev) && !isHeadingLine(p) && !endsInSentenceFinal(prev) && startsLower) {
-            out[out.length - 1] = prev + ' ' + p;
-            continue;
-        }
-        out.push(p);
+// Reconstitute the text AND track where each source line landed in the clean version.
+// Returns { sourceLines, cleanLines, lineToClean } — lineToClean[srcIdx] is the clean
+// line index that source line `srcIdx` contributed to (null for blank-line separators).
+function reconstituteWithMap(text) {
+    const sourceLines = text.split('\n');
+    // Group consecutive non-blank source lines into "raw blocks".
+    const blocks = [];   // each: { srcIndices: [int], joined: string }
+    let cur = null;
+    for (let i = 0; i < sourceLines.length; i++) {
+        if (sourceLines[i].trim() === '') { cur = null; continue; }
+        if (!cur) { cur = { srcIndices: [], joined: '' }; blocks.push(cur); }
+        const t = sourceLines[i].trim();
+        if (cur.joined === '') cur.joined = t;
+        else if (/[A-Za-z]-$/.test(cur.joined)) cur.joined = cur.joined.slice(0, -1) + t;
+        else cur.joined = cur.joined + ' ' + t;
+        cur.srcIndices.push(i);
     }
-    return out.join('\n\n');
+    // Merge blanks-separated PDF-wrap artifact blocks.
+    const merged = [];
+    for (const b of blocks) {
+        if (merged.length === 0) { merged.push(b); continue; }
+        const prev = merged[merged.length - 1];
+        const endsHyphen = /[A-Za-z]-$/.test(prev.joined);
+        const startsLower = /^[a-z]/.test(b.joined);
+        const prevIsHeading = isHeadingLine(prev.joined);
+        const currIsHeading = isHeadingLine(b.joined);
+        const prevEndsSentence = endsInSentenceFinal(prev.joined);
+        if (endsHyphen && startsLower) {
+            prev.joined = prev.joined.slice(0, -1) + b.joined;
+            prev.srcIndices = prev.srcIndices.concat(b.srcIndices);
+            continue;
+        }
+        if (!prevIsHeading && !currIsHeading && !prevEndsSentence && startsLower) {
+            prev.joined = prev.joined + ' ' + b.joined;
+            prev.srcIndices = prev.srcIndices.concat(b.srcIndices);
+            continue;
+        }
+        merged.push(b);
+    }
+    const cleanLines = [];
+    const lineToClean = new Array(sourceLines.length).fill(null);
+    for (let ci = 0; ci < merged.length; ci++) {
+        cleanLines.push(merged[ci].joined);
+        for (const si of merged[ci].srcIndices) lineToClean[si] = ci;
+    }
+    return { sourceLines, cleanLines, lineToClean };
 }
 
-// Line-level LCS: two lines are considered equal iff their normalized form matches.
-// Robust against dialogue text with many short repeated-looking lines — a line that
-// appears verbatim on the other side is always green, never stranded as red.
-function lineLCS(origLines, filtLines) {
-    const oN = origLines.map(normalizeLine);
-    const fN = filtLines.map(normalizeLine);
+// Content-token set: normalized alphanumeric words with length > 2, plus shorter tokens
+// that look like numbers. Used for fuzzy line similarity.
+function contentTokens(line) {
+    const s = new Set();
+    for (const t of tokenize(line)) {
+        const n = normTok(t);
+        if (n.length > 2 || /^[0-9]+$/.test(n)) s.add(n);
+    }
+    return s;
+}
+function lineSim(a, b) {
+    const A = contentTokens(a), B = contentTokens(b);
+    if (A.size === 0 && B.size === 0) return a.trim() === b.trim() ? 1 : 0;
+    if (A.size === 0 || B.size === 0) return 0;
+    let inter = 0;
+    for (const w of A) if (B.has(w)) inter++;
+    const jac = inter / (A.size + B.size - inter);
+    const cov = inter / Math.min(A.size, B.size);
+    // Blend: containment caught even when one side adds/drops extra tokens.
+    return 0.5 * jac + 0.5 * cov;
+}
+
+// Monotone line-level alignment tolerant of slight edits (symbol substitution,
+// punctuation differences, minor rewording). A line is matched if its best
+// monotone partner has similarity ≥ threshold; otherwise it's unmatched.
+function lineAlign(origLines, filtLines) {
+    const THRESHOLD = 0.55;   // similarity at which we consider two lines "the same"
+    const MISMATCH  = -0.6;   // penalty for diagonal step below threshold
+    const GAP       = 0;      // cost-free gap
     const m = origLines.length, n = filtLines.length;
-    const dp = Array.from({length: m+1}, () => new Uint16Array(n+1));
+    const sim = Array.from({length: m}, () => new Array(n).fill(0));
+    for (let i = 0; i < m; i++) for (let j = 0; j < n; j++) sim[i][j] = lineSim(origLines[i], filtLines[j]);
+    const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+    const back = Array.from({length: m+1}, () => new Array(n+1).fill(null));
+    for (let i = 1; i <= m; i++) { dp[i][0] = dp[i-1][0] + GAP; back[i][0] = 'up'; }
+    for (let j = 1; j <= n; j++) { dp[0][j] = dp[0][j-1] + GAP; back[0][j] = 'left'; }
     for (let i = 1; i <= m; i++) {
         for (let j = 1; j <= n; j++) {
-            if (oN[i-1].length > 0 && oN[i-1] === fN[j-1]) {
-                dp[i][j] = dp[i-1][j-1] + 1;
-            } else {
-                dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);
-            }
+            const s = sim[i-1][j-1];
+            const diag = dp[i-1][j-1] + (s >= THRESHOLD ? s : MISMATCH);
+            const up   = dp[i-1][j]   + GAP;
+            const left = dp[i][j-1]   + GAP;
+            if (diag >= up && diag >= left) { dp[i][j] = diag; back[i][j] = 'diag'; }
+            else if (up >= left)            { dp[i][j] = up;   back[i][j] = 'up'; }
+            else                            { dp[i][j] = left; back[i][j] = 'left'; }
         }
     }
     const matchO = new Map(), matchF = new Map();
     let i = m, j = n;
-    while (i > 0 && j > 0) {
-        if (oN[i-1].length > 0 && oN[i-1] === fN[j-1]) {
-            matchO.set(i-1, j-1);
-            matchF.set(j-1, i-1);
+    while (i > 0 || j > 0) {
+        const dir = back[i][j];
+        if (dir === 'diag') {
+            if (sim[i-1][j-1] >= THRESHOLD) { matchO.set(i-1, j-1); matchF.set(j-1, i-1); }
             i--; j--;
-        } else if (dp[i-1][j] >= dp[i][j-1]) {
-            i--;
-        } else {
-            j--;
-        }
+        } else if (dir === 'up') { i--; }
+        else                     { j--; }
     }
     return { matchO, matchF };
 }
 
-// Render a block of consecutive unmatched lines ("gap"): word-level LCS only between
-// the original-gap text and filtered-gap text, so partial modifications (where some
-// words are kept, some changed) still show word-level highlighting — but contained
-// to that gap, never matching across the whole document.
-function renderGapHTML(origGapLines, filtGapLines) {
-    const origText = origGapLines.join('\n');
-    const filtText = filtGapLines.join('\n');
-    const oW = tokenize(origText), fW = tokenize(filtText);
-    const { inLCS_A, inLCS_B } = computeLCS(oW, fW);
-    return {
-        left:  origText.length  ? renderWordDiffHTML(origText, inLCS_A, 'w-kept', 'w-removed') : '',
-        right: filtText.length  ? renderWordDiffHTML(filtText, inLCS_B, 'w-kept', 'w-new')     : '',
-    };
-}
-
-// Line-anchored diff: verbatim lines are wholly green; edits within gaps word-diffed locally.
+// Source-preserving Step 2 diff: displays each side exactly as written (hard wraps,
+// indentation, blank lines — all preserved), but decides red/green by aligning the
+// reconstituted paragraph-level ("clean") text, then mapping back to source lines.
+// Similarity-based alignment tolerates minor edits (symbol swaps, punctuation, etc).
 function renderStep2Diff(origText, filtText) {
-    // Reconstitute PDF-wrap artifacts first so both sides have comparable structure.
-    const origClean = reconstitute(origText);
-    const filtClean = reconstitute(filtText);
-    const origLines = origClean.split('\n');
-    const filtLines = filtClean.split('\n');
-    const { matchO, matchF } = lineLCS(origLines, filtLines);
+    const oMap = reconstituteWithMap(origText);
+    const fMap = reconstituteWithMap(filtText);
+    const { matchO, matchF } = lineAlign(oMap.cleanLines, fMap.cleanLines);
 
-    // Walk both sides in lockstep, flushing gaps (runs of unmatched lines) whenever
-    // we hit a synchronized matched pair.
-    let leftHtml = '', rightHtml = '';
-    let oGap = [], fGap = [];
-    const flushGap = () => {
-        if (oGap.length === 0 && fGap.length === 0) return;
-        const { left, right } = renderGapHTML(oGap, fGap);
-        if (left)  leftHtml  += left;
-        if (right) rightHtml += right;
-        leftHtml  += '<div class="diff-blank"></div>\n';
-        rightHtml += '<div class="diff-blank"></div>\n';
-        oGap = []; fGap = [];
-    };
-    const pushMatched = (line) => {
-        if (line.trim() === '') {
-            leftHtml  += '<div class="diff-blank"></div>\n';
-            rightHtml += '<div class="diff-blank"></div>\n';
-        } else {
-            const safe = esc(line);
-            leftHtml  += '<div class="diff-line"><span class="w-kept">' + safe + '</span></div>\n';
-            rightHtml += '<div class="diff-line"><span class="w-kept">' + safe + '</span></div>\n';
+    const renderSide = (map, matched, colorUnmatched) => {
+        let html = '';
+        for (let i = 0; i < map.sourceLines.length; i++) {
+            const line = map.sourceLines[i];
+            if (line.trim() === '') { html += '<div class="diff-blank"></div>\n'; continue; }
+            const ci = map.lineToClean[i];
+            const isMatched = ci != null && matched.has(ci);
+            const cls = isMatched ? 'w-kept' : colorUnmatched;
+            html += '<div class="diff-line"><span class="' + cls + '">' + esc(line) + '</span></div>\n';
         }
+        return html;
     };
-
-    let i = 0, j = 0;
-    while (i < origLines.length || j < filtLines.length) {
-        const iMatched = i < origLines.length && matchO.has(i);
-        const jMatched = j < filtLines.length && matchF.has(j);
-        if (iMatched && jMatched && matchO.get(i) === j) {
-            flushGap();
-            pushMatched(origLines[i]);
-            i++; j++;
-        } else if (i < origLines.length && (!iMatched || (jMatched && matchO.get(i) > j))) {
-            oGap.push(origLines[i]); i++;
-        } else if (j < filtLines.length) {
-            fGap.push(filtLines[j]); j++;
-        } else {
-            break;
-        }
-    }
-    flushGap();
-    return { leftHtml, rightHtml };
+    return {
+        leftHtml:  renderSide(oMap, matchO, 'w-removed'),
+        rightHtml: renderSide(fMap, matchF, 'w-new'),
+    };
 }
 
 // Highlight preserved key terms in already-escaped HTML text
