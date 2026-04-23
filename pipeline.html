@@ -49,8 +49,13 @@ h1 { padding: 14px 24px; background: #263238; color: #fff; font-size: 1.2em; }
     max-height: 70vh !important;
     overflow-y: auto !important;
     cursor: default !important;
+    /* line structure is provided by <div class="diff-line"> wrappers, so the
+       parent must not also interpret \n characters as line breaks */
+    white-space: normal !important;
 }
 .step2-pane::after, .step2-pane.expanded::after { content: none !important; }
+.step2-pane .diff-line { margin: 0; line-height: 1.55; }
+.step2-pane .diff-blank { height: 8px; }
 .removed .strike { text-decoration: line-through; color: #c62828; background: #ffcdd2; }
 .kept { background: #e8f5e9; border-left: 4px solid #43a047; }
 .section-experiment { background: #e3f2fd; border-left: 4px solid #1e88e5; }
