@@ -3172,30 +3172,28 @@ function lineAlign(origLines, filtLines) {
     return { matchO, matchF };
 }
 
-// Source-preserving Step 2 diff: displays each side exactly as written (hard wraps,
-// indentation, blank lines — all preserved), but decides red/green by aligning the
-// reconstituted paragraph-level ("clean") text, then mapping back to source lines.
-// Similarity-based alignment tolerates minor edits (symbol swaps, punctuation, etc).
+// Step 2 diff: display both sides as reconstituted flowing prose (hard wraps joined,
+// only real paragraph breaks kept) so the original reads like the codebook PDF, not
+// like a dump of PDF-extraction wrap artifacts. Color per clean-paragraph match.
 function renderStep2Diff(origText, filtText) {
     const oMap = reconstituteWithMap(origText);
     const fMap = reconstituteWithMap(filtText);
     const { matchO, matchF } = lineAlign(oMap.cleanLines, fMap.cleanLines);
 
-    const renderSide = (map, matched, colorUnmatched) => {
+    const renderSide = (cleanLines, matched, colorUnmatched) => {
         let html = '';
-        for (let i = 0; i < map.sourceLines.length; i++) {
-            const line = map.sourceLines[i];
-            if (line.trim() === '') { html += '<div class="diff-blank"></div>\n'; continue; }
-            const ci = map.lineToClean[i];
-            const isMatched = ci != null && matched.has(ci);
+        for (let ci = 0; ci < cleanLines.length; ci++) {
+            const line = cleanLines[ci];
+            const isMatched = matched.has(ci);
             const cls = isMatched ? 'w-kept' : colorUnmatched;
             html += '<div class="diff-line"><span class="' + cls + '">' + esc(line) + '</span></div>\n';
+            html += '<div class="diff-blank"></div>\n';
         }
         return html;
     };
     return {
-        leftHtml:  renderSide(oMap, matchO, 'w-removed'),
-        rightHtml: renderSide(fMap, matchF, 'w-new'),
+        leftHtml:  renderSide(oMap.cleanLines, matchO, 'w-removed'),
+        rightHtml: renderSide(fMap.cleanLines, matchF, 'w-new'),
     };
 }
 
