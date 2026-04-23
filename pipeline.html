@@ -3287,32 +3287,41 @@ const STEP5_EXP_VARIANTS = {"B":{"p1":["exp_V.cls_V.fmt_pt","exp_N.cls_S.fmt_pt"
 
 // Render variant blocks with diffs for a given section (experiment or theory)
 function renderVariantBlocks(sectionData, terms, sectionLabel, sectionType) {
-    let html = '';
-    const allMeta = [
-        { key: 'v',  label: 'V (verbatim)',  labelCls: 'label-v',  blockCls: 'summary-v'  },
-        { key: 'c1', label: 'C1',            labelCls: 'label-c1', blockCls: 'summary-c1' },
-        { key: 'c2', label: 'C2',            labelCls: 'label-c2', blockCls: 'summary-c2' },
-        { key: 'c3', label: 'C3',            labelCls: 'label-c3', blockCls: 'summary-c3' },
-        { key: 'c4', label: 'C4',            labelCls: 'label-c4', blockCls: 'summary-c4' },
-        { key: 'c5', label: 'C5',            labelCls: 'label-c5', blockCls: 'summary-c5' }
-    ];
-    const variantMeta = allMeta.filter(m => sectionData[m.key]);
-    const variantKeys = variantMeta.map(m => m.key);
+    // Only display variants actually used in the paper's ablation (V, C1, C2). For
+    // tasks whose "C2-level" is internally keyed as 'c3' (p1/p2), render it under
+    // the canonical C2 label so the tab has a uniform V/C1/C2 vocabulary across tasks.
+    const displayMeta = { v: 'V (verbatim)', c1: 'C1', c2: 'C2' };
+    const labelClsMap = { v: 'label-v', c1: 'label-c1', c2: 'label-c2' };
+    const blockClsMap = { v: 'summary-v', c1: 'summary-c1', c2: 'summary-c2' };
     const picks = (ABLATION_PICKS[currentTask] || {})[sectionType] || [];
+    // Remap internal keys in pick order → canonical display keys v/c1/c2.
+    const displayKeys = ['v', 'c1', 'c2'];
+    const variantMeta = [];
+    for (let i = 0; i < picks.length && i < displayKeys.length; i++) {
+        const internalKey = picks[i];
+        const dispKey = displayKeys[i];
+        if (!sectionData[internalKey]) continue;
+        variantMeta.push({
+            internalKey,
+            dispKey,
+            label: displayMeta[dispKey],
+            labelCls: labelClsMap[dispKey],
+            blockCls: blockClsMap[dispKey],
+        });
+    }
+    if (variantMeta.length === 0) return '';
     const prevLabels = {};
-    for (let i = 1; i < variantKeys.length; i++) {
-        prevLabels[variantKeys[i]] = variantMeta[i-1].label;
+    for (let i = 1; i < variantMeta.length; i++) {
+        prevLabels[variantMeta[i].dispKey] = variantMeta[i-1].label;
     }
 
+    let html = '';
     for (let vi = 0; vi < variantMeta.length; vi++) {
         const vr = variantMeta[vi];
-        const d = sectionData[vr.key];
-        const isSelected = picks.includes(vr.key);
-        const wrapClass = isSelected ? '' : ' not-selected';
-        html += '<div class="' + wrapClass + '">';
+        const d = sectionData[vr.internalKey];
+        html += '<div>';
         html += '<div class="variant-header">';
         html += '<span class="label ' + vr.labelCls + '">' + vr.label + ' (' + d.compression + '%)</span>';
-        if (isSelected) html += '<span class="selected-badge">USED IN ABLATION</span>';
         html += '<span class="variant-stat"><strong>' + d.words + '</strong> words</span>';
         html += '<span class="variant-stat">cos = <strong>' + d.cosine.toFixed(4) + '</strong></span>';
         html += '</div>';
@@ -3322,10 +3331,10 @@ function renderVariantBlocks(sectionData, terms, sectionLabel, sectionType) {
         html += '<div class="codebook-block ' + vr.blockCls + '">' + variantHtml + '</div>';
 
         if (vi > 0) {
-            const prevKey = variantKeys[vi - 1];
-            const prevText = sectionData[prevKey].text;
+            const prevInternalKey = variantMeta[vi - 1].internalKey;
+            const prevText = sectionData[prevInternalKey].text;
             const currText = d.text;
-            const prevLabel = prevLabels[vr.key];
+            const prevLabel = prevLabels[vr.dispKey];
             const toggleId = diffToggleCounter++;
 
             html += '<span class="diff-toggle" id="diff-toggle-' + toggleId + '" data-label-closed="Show diff from ' + prevLabel + '" data-label-open="Hide diff from ' + prevLabel + '" onclick="toggleDiff(' + toggleId + ')">Show diff from ' + prevLabel + '</span>';
@@ -3362,8 +3371,8 @@ function renderVariantBlocks(sectionData, terms, sectionLabel, sectionType) {
     return html;
 }
 
-// Render a dynamic similarity metrics bar for any number of variants
-function renderSimilarityBar(sectionData, sectionLabel) {
+// Render a dynamic similarity metrics bar showing only the variants used in the paper.
+function renderSimilarityBar(sectionData, sectionLabel, sectionType) {
     let html = '';
     if (sectionLabel) {
         html += '<div class="sim-section-label">' + esc(sectionLabel) + '</div>';
@@ -3374,22 +3383,20 @@ function renderSimilarityBar(sectionData, sectionLabel) {
         { bg: '#e8f5e9', fg: '#2e7d32' },
         { bg: '#f1f8e9', fg: '#558b2f' },
         { bg: '#fff3e0', fg: '#e65100' },
-        { bg: '#fce4ec', fg: '#c62828' },
-        { bg: '#f3e5f5', fg: '#6a1b9a' },
-        { bg: '#e0f7fa', fg: '#006064' }
     ];
-    const allKeys = ['v','c1','c2','c3','c4','c5'];
-    const presentKeys = allKeys.filter(k => sectionData[k]);
+    const picks = (ABLATION_PICKS[currentTask] || {})[sectionType] || [];
+    const displayLabels = ['V (verbatim)', 'C1', 'C2'];
 
-    for (let i = 0; i < presentKeys.length; i++) {
-        const k = presentKeys[i];
-        const d = sectionData[k];
+    for (let i = 0; i < picks.length && i < displayLabels.length; i++) {
+        const internalKey = picks[i];
+        const d = sectionData[internalKey];
+        if (!d) continue;
         const col = segColors[i] || segColors[segColors.length - 1];
         html += '<div class="sim-segment" style="flex:1; background:' + col.bg + '; color:' + col.fg + ';">';
         if (i === 0) {
-            html += '<span class="sim-label">V (verbatim)</span><span class="sim-val">' + d.words + ' words</span>';
+            html += '<span class="sim-label">' + displayLabels[i] + '</span><span class="sim-val">' + d.words + ' words</span>';
         } else {
-            html += '<span class="sim-label">' + k.toUpperCase() + ' \u2014 cos ' + d.cosine.toFixed(4) + '</span><span class="sim-val">' + d.words + ' words (' + d.compression + '%)</span>';
+            html += '<span class="sim-label">' + displayLabels[i] + ' \u2014 cos ' + d.cosine.toFixed(4) + '</span><span class="sim-val">' + d.words + ' words (' + d.compression + '%)</span>';
         }
         html += '</div>';
     }
@@ -3495,10 +3502,10 @@ function render() {
         // --- Similarity metrics bar(s) ---
         if (task.step4.experiment) {
             if (task.hasTheory && task.step4.theory) {
-                html += renderSimilarityBar(task.step4.experiment, 'Context: Experiment');
-                html += renderSimilarityBar(task.step4.theory, 'Context: Theory');
+                html += renderSimilarityBar(task.step4.experiment, 'Context: Experiment', 'exp');
+                html += renderSimilarityBar(task.step4.theory, 'Context: Theory', 'theory');
             } else {
-                html += renderSimilarityBar(task.step4.experiment, null);
+                html += renderSimilarityBar(task.step4.experiment, null, 'exp');
             }
         }
 
@@ -3543,15 +3550,21 @@ function render() {
 
         // --- Information Tracking ---
         if (task.step4.infoTracking) {
+            // Only show columns for variants actually used in the paper's ablation.
+            const picks = (ABLATION_PICKS[currentTask] || {}).exp || ['v','c1','c2'];
+            const displayLabels = ['V', 'C1', 'C2'];
+            const cols = picks.slice(0, displayLabels.length);
             html += '<h3 style="margin-top:24px;">Information Tracking</h3>';
             html += '<p style="margin-bottom:8px; font-size:0.85em; color:#666;">Tracks which pieces of information survive each compression level.</p>';
             html += '<table class="info-table">';
-            html += '<thead><tr><th style="text-align:left;">Information</th><th>V</th><th>C1</th><th>C2</th><th>C3</th></tr></thead>';
+            html += '<thead><tr><th style="text-align:left;">Information</th>';
+            for (let i = 0; i < cols.length; i++) html += '<th>' + displayLabels[i] + '</th>';
+            html += '</tr></thead>';
             html += '<tbody>';
             for (const item of task.step4.infoTracking.items) {
                 html += '<tr>';
                 html += '<td>' + esc(item.info) + '</td>';
-                for (const col of ['v','c1','c2','c3']) {
+                for (const col of cols) {
                     const present = item[col];
                     const note = item[col + 'note'] || '';
                     if (present) {
@@ -3566,18 +3579,12 @@ function render() {
 
             const items = task.step4.infoTracking.items;
             const total = items.length;
-            const counts = { v: 0, c1: 0, c2: 0, c3: 0 };
-            for (const item of items) {
-                if (item.v) counts.v++;
-                if (item.c1) counts.c1++;
-                if (item.c2) counts.c2++;
-                if (item.c3) counts.c3++;
-            }
             html += '<div class="stats">';
-            html += '<div class="stat">V: <span class="stat-value">' + counts.v + '/' + total + '</span></div>';
-            html += '<div class="stat">C1: <span class="stat-value">' + counts.c1 + '/' + total + '</span></div>';
-            html += '<div class="stat">C2: <span class="stat-value">' + counts.c2 + '/' + total + '</span></div>';
-            html += '<div class="stat">C3: <span class="stat-value">' + counts.c3 + '/' + total + '</span></div>';
+            for (let i = 0; i < cols.length; i++) {
+                let count = 0;
+                for (const item of items) if (item[cols[i]]) count++;
+                html += '<div class="stat">' + displayLabels[i] + ': <span class="stat-value">' + count + '/' + total + '</span></div>';
+            }
             html += '</div>';
         }
     }
