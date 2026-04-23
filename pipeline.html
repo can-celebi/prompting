@@ -3036,39 +3036,62 @@ function isHeadingLine(s) {
 }
 function endsInSentenceFinal(s) { return /[.!?:;]\s*["'”’]?\s*$/.test(s.trim()); }
 
+// A line should stand alone as its own block (not glued onto the previous line).
+// Bullets, numbered/lettered items, markdown headings, horizontal rules, all-caps labels.
+function isStandaloneLine(line) {
+    const t = line.trim();
+    if (!t) return false;
+    if (/^[-*•·]\s/.test(t)) return true;        // bullet marker
+    if (/^#/.test(t)) return true;                // markdown heading
+    if (/^-{3,}$/.test(t) || /^={3,}$/.test(t)) return true; // rule
+    if (/^\d+[.)]\s/.test(t)) return true;        // "1) " or "1. "
+    if (/^[a-z]\.\s/.test(t)) return true;        // "a. "
+    if (/^[A-Z][A-Z0-9 \-,:]{2,}$/.test(t) && t.length < 60) return true; // ALL-CAPS label
+    return false;
+}
+
 // Reconstitute the text AND track where each source line landed in the clean version.
 // Returns { sourceLines, cleanLines, lineToClean } — lineToClean[srcIdx] is the clean
 // line index that source line `srcIdx` contributed to (null for blank-line separators).
+// Granularity rules: blank lines break blocks; bullet/heading/numbered lines also break
+// (and become their own block) — so a "- level-1 player: vote blue" line never gets
+// glued onto a neighboring sentence, and granularity is symmetric on both sides
+// regardless of how the source happened to use blank lines.
 function reconstituteWithMap(text) {
     const sourceLines = text.split('\n');
-    // Group consecutive non-blank source lines into "raw blocks".
     const blocks = [];   // each: { srcIndices: [int], joined: string }
     let cur = null;
+    const startBlock = () => { cur = { srcIndices: [], joined: '' }; blocks.push(cur); };
     for (let i = 0; i < sourceLines.length; i++) {
-        if (sourceLines[i].trim() === '') { cur = null; continue; }
-        if (!cur) { cur = { srcIndices: [], joined: '' }; blocks.push(cur); }
-        const t = sourceLines[i].trim();
+        const raw = sourceLines[i];
+        if (raw.trim() === '') { cur = null; continue; }
+        const t = raw.trim();
+        const standalone = isStandaloneLine(t);
+        if (standalone || !cur) startBlock();
         if (cur.joined === '') cur.joined = t;
         else if (/[A-Za-z]-$/.test(cur.joined)) cur.joined = cur.joined.slice(0, -1) + t;
         else cur.joined = cur.joined + ' ' + t;
         cur.srcIndices.push(i);
+        // A standalone line never absorbs its successors — next non-blank line starts fresh.
+        if (standalone) cur = null;
     }
-    // Merge blanks-separated PDF-wrap artifact blocks.
+    // Merge blank-separated PDF-wrap artifact blocks (no blank should split a continuation).
     const merged = [];
     for (const b of blocks) {
         if (merged.length === 0) { merged.push(b); continue; }
         const prev = merged[merged.length - 1];
+        const prevStandalone = isStandaloneLine(prev.joined);
+        const currStandalone = isStandaloneLine(b.joined);
+        if (prevStandalone || currStandalone) { merged.push(b); continue; }
         const endsHyphen = /[A-Za-z]-$/.test(prev.joined);
         const startsLower = /^[a-z]/.test(b.joined);
-        const prevIsHeading = isHeadingLine(prev.joined);
-        const currIsHeading = isHeadingLine(b.joined);
         const prevEndsSentence = endsInSentenceFinal(prev.joined);
         if (endsHyphen && startsLower) {
             prev.joined = prev.joined.slice(0, -1) + b.joined;
             prev.srcIndices = prev.srcIndices.concat(b.srcIndices);
             continue;
         }
-        if (!prevIsHeading && !currIsHeading && !prevEndsSentence && startsLower) {
+        if (!prevEndsSentence && startsLower) {
             prev.joined = prev.joined + ' ' + b.joined;
             prev.srcIndices = prev.srcIndices.concat(b.srcIndices);
             continue;
