@@ -3015,6 +3015,107 @@ function renderWordDiffHTML(text, inLCS, cssInLCS, cssNotInLCS) {
     return html;
 }
 
+// Split text into paragraphs (separated by blank lines). Preserve original order.
+function splitParagraphs(text) {
+    return text.split(/\n\s*\n/).map(p => p.replace(/^\s+|\s+$/g, '')).filter(p => p.length > 0);
+}
+
+// Jaccard similarity over normalized content tokens (length > 2) for paragraph matching.
+function paraSim(a, b) {
+    const norm = s => new Set(tokenize(s).map(normTok).filter(w => w.length > 2));
+    const aSet = norm(a), bSet = norm(b);
+    if (aSet.size === 0 || bSet.size === 0) return 0;
+    let inter = 0;
+    for (const w of aSet) if (bSet.has(w)) inter++;
+    const uni = aSet.size + bSet.size - inter;
+    return uni > 0 ? inter / uni : 0;
+}
+
+// Monotone DP alignment of two paragraph lists. Returns ordered list of
+// {origIdx, filtIdx} where either may be null (unmatched paragraph).
+function alignParagraphs(orig, filt, threshold) {
+    const m = orig.length, n = filt.length;
+    const sim = [];
+    for (let i = 0; i < m; i++) {
+        const row = new Array(n);
+        for (let j = 0; j < n; j++) row[j] = paraSim(orig[i], filt[j]);
+        sim.push(row);
+    }
+    const GAP = 0;            // score for leaving a paragraph unmatched
+    const MISMATCH = -0.6;    // score for diagonal step below threshold
+    const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+    const back = Array.from({length: m+1}, () => new Array(n+1).fill(null));
+    for (let i = 1; i <= m; i++) { dp[i][0] = dp[i-1][0] + GAP; back[i][0] = 'up'; }
+    for (let j = 1; j <= n; j++) { dp[0][j] = dp[0][j-1] + GAP; back[0][j] = 'left'; }
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            const s = sim[i-1][j-1];
+            const diag = dp[i-1][j-1] + (s >= threshold ? s : MISMATCH);
+            const up   = dp[i-1][j]   + GAP;
+            const left = dp[i][j-1]   + GAP;
+            if (diag >= up && diag >= left) { dp[i][j] = diag; back[i][j] = 'diag'; }
+            else if (up >= left)            { dp[i][j] = up;   back[i][j] = 'up'; }
+            else                            { dp[i][j] = left; back[i][j] = 'left'; }
+        }
+    }
+    const pairs = [];
+    let i = m, j = n;
+    while (i > 0 || j > 0) {
+        const dir = back[i][j];
+        if (dir === 'diag') {
+            const s = sim[i-1][j-1];
+            if (s >= threshold) pairs.unshift({origIdx: i-1, filtIdx: j-1});
+            else { pairs.unshift({origIdx: i-1, filtIdx: null}); pairs.unshift({origIdx: null, filtIdx: j-1}); }
+            i--; j--;
+        } else if (dir === 'up')   { pairs.unshift({origIdx: i-1, filtIdx: null}); i--; }
+        else                       { pairs.unshift({origIdx: null, filtIdx: j-1}); j--; }
+    }
+    return pairs;
+}
+
+// Paragraph-aware Step 2 diff: LCS word-matching is confined to paired paragraphs,
+// so a common word in one paragraph never matches an unrelated paragraph.
+function renderStep2Diff(origText, filtText) {
+    const origParas = splitParagraphs(origText);
+    const filtParas = splitParagraphs(filtText);
+    const pairs = alignParagraphs(origParas, filtParas, 0.2);
+    const origMatch = new Map(), filtMatch = new Map();
+    for (const p of pairs) {
+        if (p.origIdx != null && p.filtIdx != null) {
+            origMatch.set(p.origIdx, p.filtIdx);
+            filtMatch.set(p.filtIdx, p.origIdx);
+        }
+    }
+    const emptySet = new Set();
+    let leftHtml = '', rightHtml = '';
+    let origWc = 0, filtWc = 0;
+    for (let i = 0; i < origParas.length; i++) {
+        const oWords = tokenize(origParas[i]);
+        origWc += oWords.length;
+        if (origMatch.has(i)) {
+            const fIdx = origMatch.get(i);
+            const { inLCS_A } = computeLCS(oWords, tokenize(filtParas[fIdx]));
+            leftHtml += renderWordDiffHTML(origParas[i], inLCS_A, 'w-kept', 'w-removed');
+        } else {
+            leftHtml += renderWordDiffHTML(origParas[i], emptySet, 'w-kept', 'w-removed');
+        }
+        leftHtml += '<div class="diff-blank"></div>\n';
+    }
+    for (let j = 0; j < filtParas.length; j++) {
+        const fWords = tokenize(filtParas[j]);
+        filtWc += fWords.length;
+        if (filtMatch.has(j)) {
+            const oIdx = filtMatch.get(j);
+            const { inLCS_B } = computeLCS(tokenize(origParas[oIdx]), fWords);
+            rightHtml += renderWordDiffHTML(filtParas[j], inLCS_B, 'w-kept', 'w-new');
+        } else {
+            rightHtml += renderWordDiffHTML(filtParas[j], emptySet, 'w-kept', 'w-new');
+        }
+        rightHtml += '<div class="diff-blank"></div>\n';
+    }
+    return { leftHtml, rightHtml, origWc, filtWc };
+}
+
 // Highlight preserved key terms in already-escaped HTML text
 function highlightTerms(html, terms) {
     if (!terms || terms.length === 0) return html;
@@ -3240,12 +3341,10 @@ function render() {
         html += '<h3>Step 2: Manual Filtering (word-level diff)</h3>';
         html += '<p style="margin-bottom:8px; font-size:0.85em; color:#666;">Procedural content irrelevant to the LLM is removed. Word-level LCS diff shows exactly which words were cut (red/strikethrough) and kept (green). Right panel shows shared words (green) and any reframed/new words (blue).</p>';
 
+        const { leftHtml, rightHtml, origWc: _origWc, filtWc: _filtWc } =
+            renderStep2Diff(task.step2.original, task.step2.filtered);
         const origWords = tokenize(task.step2.original);
         const filtWords = tokenize(task.step2.filtered);
-        const { lcsLen, inLCS_A, inLCS_B } = computeLCS(origWords, filtWords);
-
-        const leftHtml = renderWordDiffHTML(task.step2.original, inLCS_A, 'w-kept', 'w-removed');
-        const rightHtml = renderWordDiffHTML(task.step2.filtered, inLCS_B, 'w-kept', 'w-new');
 
         html += '<div class="side-by-side">';
         html += '<div>';
