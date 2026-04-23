@@ -3094,7 +3094,13 @@ function reconstituteWithMap(text) {
         if (raw.trim() === '') { cur = null; continue; }
         const t = raw.trim();
         const standalone = isStandaloneLine(t);
-        if (standalone || !cur) startBlock();
+        // PDF-extracted codebook text uses a leading indent (4+ spaces) to mark a new
+        // paragraph, even when there's no blank line before it. Without this rule,
+        // consecutive indented paragraphs get glued together, and alignment fails
+        // against a filtered version that uses blank lines as paragraph separators.
+        const leadSpaces = raw.match(/^( *)/)[1].length;
+        const indentStart = leadSpaces >= 4 && cur && cur.joined !== '';
+        if (standalone || indentStart || !cur) startBlock();
         if (cur.joined === '') cur.joined = t;
         else if (/[A-Za-z]-$/.test(cur.joined)) cur.joined = cur.joined.slice(0, -1) + t;
         else cur.joined = cur.joined + ' ' + t;
