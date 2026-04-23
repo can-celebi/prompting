@@ -3042,7 +3042,8 @@ function isHeadingLine(s) {
 function endsInSentenceFinal(s) { return /[.!?:;]\s*["'”’]?\s*$/.test(s.trim()); }
 
 // A line should stand alone as its own block (not glued onto the previous line).
-// Bullets, numbered/lettered items, markdown headings, horizontal rules, all-caps labels.
+// Bullets, numbered/lettered items, markdown headings, horizontal rules, ALL-CAPS labels,
+// and short Title Case headings like "The Original Experiment" or "Classification Task".
 function isStandaloneLine(line) {
     const t = line.trim();
     if (!t) return false;
@@ -3052,6 +3053,21 @@ function isStandaloneLine(line) {
     if (/^\d+[.)]\s/.test(t)) return true;        // "1) " or "1. "
     if (/^[a-z]\.\s/.test(t)) return true;        // "a. "
     if (/^[A-Z][A-Z0-9 \-,:]{2,}$/.test(t) && t.length < 60) return true; // ALL-CAPS label
+    // Short Title Case heading: all significant words start with an uppercase letter,
+    // no sentence-final punctuation.
+    if (t.length < 70 && /^[A-Z][A-Za-z0-9\-\s]*$/.test(t) && !/[.!?;,:]$/.test(t)) {
+        const small = new Set(['of','the','a','an','and','or','in','on','at','to','for','with','vs','by','as','is','de']);
+        const words = t.split(/\s+/);
+        if (words.length <= 8) {
+            let ok = true;
+            for (let i = 0; i < words.length; i++) {
+                const w = words[i];
+                if (i > 0 && small.has(w.toLowerCase())) continue;
+                if (!/^[A-Z0-9]/.test(w)) { ok = false; break; }
+            }
+            if (ok) return true;
+        }
+    }
     return false;
 }
 
@@ -3172,28 +3188,48 @@ function lineAlign(origLines, filtLines) {
     return { matchO, matchF };
 }
 
-// Step 2 diff: display both sides as reconstituted flowing prose (hard wraps joined,
-// only real paragraph breaks kept) so the original reads like the codebook PDF, not
-// like a dump of PDF-extraction wrap artifacts. Color per clean-paragraph match.
+// Step 2 diff: reconstituted flowing prose on both sides (hard wraps joined, only real
+// paragraph breaks kept). Matched paragraphs still get word-level coloring so edits
+// within a paragraph (dropped parentheticals, reworded phrases) show as red/blue while
+// preserved words stay green. Unmatched paragraphs render fully red/blue.
 function renderStep2Diff(origText, filtText) {
     const oMap = reconstituteWithMap(origText);
     const fMap = reconstituteWithMap(filtText);
     const { matchO, matchF } = lineAlign(oMap.cleanLines, fMap.cleanLines);
 
-    const renderSide = (cleanLines, matched, colorUnmatched) => {
+    const renderWordColored = (text, inLCS, cssInLCS, cssNotInLCS) => {
+        const words = tokenize(text);
+        let out = '';
+        for (let w = 0; w < words.length; w++) {
+            const cls = inLCS.has(w) ? cssInLCS : cssNotInLCS;
+            out += '<span class="' + cls + '">' + esc(words[w]) + '</span> ';
+        }
+        return out;
+    };
+
+    const renderSide = (myMap, partnerMap, myMatch, colorUnmatched, isOrig) => {
         let html = '';
-        for (let ci = 0; ci < cleanLines.length; ci++) {
-            const line = cleanLines[ci];
-            const isMatched = matched.has(ci);
-            const cls = isMatched ? 'w-kept' : colorUnmatched;
-            html += '<div class="diff-line"><span class="' + cls + '">' + esc(line) + '</span></div>\n';
+        for (let ci = 0; ci < myMap.cleanLines.length; ci++) {
+            const line = myMap.cleanLines[ci];
+            let inner;
+            if (myMatch.has(ci)) {
+                const partnerLine = partnerMap.cleanLines[myMatch.get(ci)];
+                const aTokens = isOrig ? tokenize(line) : tokenize(partnerLine);
+                const bTokens = isOrig ? tokenize(partnerLine) : tokenize(line);
+                const { inLCS_A, inLCS_B } = computeLCS(aTokens, bTokens);
+                const mySet = isOrig ? inLCS_A : inLCS_B;
+                inner = renderWordColored(line, mySet, 'w-kept', colorUnmatched);
+            } else {
+                inner = '<span class="' + colorUnmatched + '">' + esc(line) + '</span>';
+            }
+            html += '<div class="diff-line">' + inner + '</div>\n';
             html += '<div class="diff-blank"></div>\n';
         }
         return html;
     };
     return {
-        leftHtml:  renderSide(oMap.cleanLines, matchO, 'w-removed'),
-        rightHtml: renderSide(fMap.cleanLines, matchF, 'w-new'),
+        leftHtml:  renderSide(oMap, fMap, matchO, 'w-removed', true),
+        rightHtml: renderSide(fMap, oMap, matchF, 'w-new',     false),
     };
 }
 
