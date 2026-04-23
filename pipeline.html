@@ -165,6 +165,8 @@ h1 { padding: 14px 24px; background: #263238; color: #fff; font-size: 1.2em; }
 .w-kept { background: #c8e6c9; border-radius: 2px; padding: 0 1px; }
 .w-removed { background: #ffcdd2; text-decoration: line-through; color: #c62828; border-radius: 2px; padding: 0 1px; }
 .w-new { background: #bbdefb; border-radius: 2px; padding: 0 1px; }
+/* Relocated — moved to the separate examples section rather than cut */
+.w-relocated { background: #ffe0b2; color: #e65100; border-radius: 2px; padding: 0 1px; }
 .diff-line { margin: 2px 0; line-height: 1.65; }
 .diff-blank { height: 10px; }
 
@@ -211,6 +213,7 @@ h1 { padding: 14px 24px; background: #263238; color: #fff; font-size: 1.2em; }
     <div class="legend-item"><span class="legend-swatch" style="background:#ffebee; border-left:3px solid #e53935"></span> Removed</div>
     <div class="legend-item"><span class="legend-swatch" style="background:#c8e6c9"></span> Kept / Shared</div>
     <div class="legend-item"><span class="legend-swatch" style="background:#bbdefb"></span> New / Reframed</div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#ffe0b2; border:1px solid #e65100"></span> Relocated to examples</div>
     <div class="legend-item"><span class="legend-swatch" style="background:#fff59d; border:1px solid #f9a825"></span> Preserved term</div>
     <div class="legend-item"><span class="legend-swatch" style="background:#e3f2fd; border-left:3px solid #1e88e5"></span> Context: Experiment</div>
     <div class="legend-item"><span class="legend-swatch" style="background:#f3e5f5; border-left:3px solid #8e24aa"></span> Context: Theory</div>
@@ -3205,12 +3208,14 @@ function lineAlign(origLines, filtLines) {
 // identical passages stay green regardless of how blank lines / indentation differ
 // between the two versions. Paragraphs are displayed separately for layout but
 // coloring is decided globally.
-function renderStep2Diff(origText, filtText) {
+//
+// If `examplesText` is provided, run a second LCS between the original and the
+// separated-examples content so words that were *relocated* to that step-3 section
+// render orange rather than red — they weren't cut, just moved.
+function renderStep2Diff(origText, filtText, examplesText) {
     const oMap = reconstituteWithMap(origText);
     const fMap = reconstituteWithMap(filtText);
 
-    // Flatten each side's clean-line words into a single token sequence, remembering
-    // which clean-line each token came from so we can render back in paragraph form.
     const flatten = (map) => {
         const tokens = [];            // flat array of raw word strings
         const blockRanges = [];       // per clean-line, [startFlatIdx, endFlatIdx)
@@ -3225,26 +3230,42 @@ function renderStep2Diff(origText, filtText) {
     const oFlat = flatten(oMap);
     const fFlat = flatten(fMap);
 
-    const { inLCS_A, inLCS_B } = computeLCS(oFlat.tokens, fFlat.tokens);
+    const { inLCS_A: inFilt_O, inLCS_B: inFilt_F } = computeLCS(oFlat.tokens, fFlat.tokens);
+    let inEx_O = new Set();
+    if (examplesText && examplesText.trim().length > 0) {
+        const exTokens = tokenize(examplesText);
+        const exRes = computeLCS(oFlat.tokens, exTokens);
+        inEx_O = exRes.inLCS_A;
+    }
 
-    const renderSide = (flat, inLCS, colorUnmatched) => {
-        let html = '';
-        for (let ci = 0; ci < flat.blockRanges.length; ci++) {
-            const [s, e] = flat.blockRanges[ci];
-            let inner = '';
-            for (let k = s; k < e; k++) {
-                const cls = inLCS.has(k) ? 'w-kept' : colorUnmatched;
-                inner += '<span class="' + cls + '">' + esc(flat.tokens[k]) + '</span> ';
-            }
-            html += '<div class="diff-line">' + inner + '</div>\n';
-            html += '<div class="diff-blank"></div>\n';
+    let leftHtml = '';
+    for (let ci = 0; ci < oFlat.blockRanges.length; ci++) {
+        const [s, e] = oFlat.blockRanges[ci];
+        let inner = '';
+        for (let k = s; k < e; k++) {
+            let cls;
+            if (inFilt_O.has(k))       cls = 'w-kept';
+            else if (inEx_O.has(k))    cls = 'w-relocated';
+            else                       cls = 'w-removed';
+            inner += '<span class="' + cls + '">' + esc(oFlat.tokens[k]) + '</span> ';
         }
-        return html;
-    };
-    return {
-        leftHtml:  renderSide(oFlat, inLCS_A, 'w-removed'),
-        rightHtml: renderSide(fFlat, inLCS_B, 'w-new'),
-    };
+        leftHtml += '<div class="diff-line">' + inner + '</div>\n';
+        leftHtml += '<div class="diff-blank"></div>\n';
+    }
+
+    let rightHtml = '';
+    for (let ci = 0; ci < fFlat.blockRanges.length; ci++) {
+        const [s, e] = fFlat.blockRanges[ci];
+        let inner = '';
+        for (let k = s; k < e; k++) {
+            const cls = inFilt_F.has(k) ? 'w-kept' : 'w-new';
+            inner += '<span class="' + cls + '">' + esc(fFlat.tokens[k]) + '</span> ';
+        }
+        rightHtml += '<div class="diff-line">' + inner + '</div>\n';
+        rightHtml += '<div class="diff-blank"></div>\n';
+    }
+
+    return { leftHtml, rightHtml };
 }
 
 // Highlight preserved key terms in already-escaped HTML text
@@ -3477,16 +3498,17 @@ function render() {
 
     else if (currentStep === 2) {
         html += '<h3>Step 2: Manual Filtering (word-level diff)</h3>';
-        html += '<p style="margin-bottom:8px; font-size:0.85em; color:#666;">Procedural content irrelevant to the LLM is removed. Word-level LCS diff shows exactly which words were cut (red/strikethrough) and kept (green). Right panel shows shared words (green) and any reframed/new words (blue).</p>';
+        html += '<p style="margin-bottom:8px; font-size:0.85em; color:#666;">Procedural content irrelevant to the LLM is removed. Worked examples (orange) are <em>moved</em> to a separate step-3 section, not cut. Green = kept, red/strikethrough = removed, blue = reframed in filtered.</p>';
 
-        const { leftHtml, rightHtml } = renderStep2Diff(task.step2.original, task.step2.filtered);
+        const examplesText = (task.hasExamples && task.step3 && task.step3.examples) ? task.step3.examples : '';
+        const { leftHtml, rightHtml } = renderStep2Diff(task.step2.original, task.step2.filtered, examplesText);
         const origWords = tokenize(task.step2.original);
         const filtWords = tokenize(task.step2.filtered);
         const { lcsLen } = computeLCS(origWords, filtWords);
 
         html += '<div class="side-by-side">';
         html += '<div>';
-        html += '<span class="label label-removed">ORIGINAL (removed = red strikethrough, kept = green)</span>';
+        html += '<span class="label label-removed">ORIGINAL (green = kept, red = removed, orange = relocated to examples)</span>';
         html += '<div class="codebook-block removed step2-pane">' + leftHtml + '</div>';
         html += '</div>';
         html += '<div>';
