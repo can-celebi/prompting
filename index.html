@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Using LLMs for Classification of Text Messages from Experiments — Companion</title>
+<title>Much Ado about Prompting — Companion</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
@@ -26,15 +26,23 @@
     font-size: 2.0em;
     font-weight: 600;
     letter-spacing: -0.02em;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     color: var(--ink);
+  }
+  .h1-lead {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    font-style: italic;
+    color: var(--accent);
   }
   .subtitle {
     font-family: 'Source Serif 4', Georgia, serif;
     font-style: italic;
-    font-size: 1.05em;
+    font-size: 1.02em;
     color: var(--muted);
-    margin-bottom: 18px;
+    margin: 8px auto 16px;
+    max-width: 760px;
+    line-height: 1.45;
   }
   .authors { font-size: 0.9em; color: var(--muted); letter-spacing: 0.02em; }
   .authors a { color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.15s; }
@@ -71,9 +79,10 @@
     text-decoration: none;
     color: var(--ink);
     transition: all 0.2s ease;
-    min-height: 180px;
+    min-height: 200px;
     position: relative;
     overflow: hidden;
+    text-align: center;
   }
   .card::after {
     content: ''; position: absolute; bottom: 0; left: 0;
@@ -106,8 +115,20 @@
 
   .label { font-weight: 600; font-size: 1.0em; margin-bottom: 6px; letter-spacing: -0.01em; }
   .desc  { font-size: 0.82em; color: var(--muted); line-height: 1.5; flex-grow: 1; }
+  .paper-ref {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 0.74em;
+    color: var(--accent);
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+    width: 100%;
+    line-height: 1.4;
+  }
+  .paper-ref b { font-style: normal; font-weight: 600; letter-spacing: 0.01em; }
   .badge {
-    margin-top: 12px; padding: 3px 9px;
+    margin-top: 10px; padding: 3px 9px;
     background: var(--accent-light); color: var(--accent);
     border-radius: 16px; font-size: 0.68em; font-weight: 500;
     letter-spacing: 0.04em; text-transform: uppercase;
@@ -120,32 +141,11 @@
 <body>
 <div class="wrap">
   <div class="header">
-    <h1>Using LLMs for Classification of Text Messages from Experiments</h1>
-    <div class="subtitle">Companion materials</div>
+    <h1><span class="h1-lead">Much Ado about Prompting:</span><br>LLM Classification of Text Messages from Experiments</h1>
+    <div class="subtitle">Retain verbatim classification instructions, but assess whether theory compression improves accuracy before scaling up.</div>
     <div class="authors">
       Can &Ccedil;elebi &nbsp;&middot;&nbsp; Stefan&nbsp;P. Penczynski
     </div>
-  </div>
-
-  <div class="section-heading">Presentation</div>
-  <div class="grid">
-    <a class="card" href="presentation-short.pdf" download>
-      <div class="icon">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
-      </div>
-      <div class="label">Short presentation</div>
-      <div class="desc">Condensed deck: headline result, findings and practical implications. ~10&nbsp;min.</div>
-      <div class="badge">PDF &middot; Download</div>
-    </a>
-
-    <a class="card" href="presentation-full.pdf" download>
-      <div class="icon">
-        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
-      </div>
-      <div class="label">Full presentation</div>
-      <div class="desc">Extended deck walking through motivation, design and every result in detail. ~40&nbsp;min.</div>
-      <div class="badge">PDF &middot; Download</div>
-    </a>
   </div>
 
   <div class="section-heading">Codebooks &amp; pipeline</div>
@@ -155,7 +155,8 @@
         <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       </div>
       <div class="label">Codebooks</div>
-      <div class="desc">The three original codebooks as written for human annotators.</div>
+      <div class="desc">The three original codebooks as written for human annotators: Promise (P2), Level-k voting (L1), Level-k coordination (L2).</div>
+      <div class="paper-ref"><b>Paper &sect;4.1 &mdash; Data.</b> Source of the human ground-truth labels.</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -164,7 +165,8 @@
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="10" y1="6.5" x2="14" y2="6.5"/><line x1="6.5" y1="10" x2="6.5" y2="14"/><line x1="17.5" y1="10" x2="17.5" y2="14"/></svg>
       </div>
       <div class="label">Pipeline</div>
-      <div class="desc">Codebook &rarr; filter &rarr; separate &rarr; compress. The four-step transformation.</div>
+      <div class="desc">Codebook &rarr; filter &rarr; separate &rarr; compress. The four-step transformation with a word-level diff per step.</div>
+      <div class="paper-ref"><b>Paper &sect;4.2 &mdash; Codebook-to-Prompt Pipeline.</b> Cosine-similarity compression reported in Table&nbsp;A1.</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -173,7 +175,8 @@
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
       </div>
       <div class="label">Prompt assembly</div>
-      <div class="desc">Build any prompt variant interactively: pick every dimension at once.</div>
+      <div class="desc">Build any prompt variant interactively: pick every dimension at once (content, format, framing, examples).</div>
+      <div class="paper-ref"><b>Paper &sect;4.2 &amp; Fig.&nbsp;1 &mdash; Prompt template.</b> The standardised assembly used in every experiment.</div>
       <div class="badge">Interactive</div>
     </a>
   </div>
@@ -185,7 +188,8 @@
         <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
       </div>
       <div class="label">Content</div>
-      <div class="desc">Classification, experiment and theory sections at varying compression levels.</div>
+      <div class="desc">Classification, experiment and theory sections at verbatim &rarr; C1 &rarr; C2 compression levels.</div>
+      <div class="paper-ref"><b>Paper &sect;5.1 &mdash; Results: Content.</b> Table&nbsp;1 (acc.&nbsp;at minimal), Fig.&nbsp;2 information surfaces.</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -194,7 +198,8 @@
         <svg viewBox="0 0 24 24"><path d="M4 4h16v4H4z"/><path d="M4 12h10"/><path d="M4 18h14"/></svg>
       </div>
       <div class="label">Format</div>
-      <div class="desc">Markdown, plain titles, prose, bulleted list &mdash; five tested formats.</div>
+      <div class="desc">Markdown, plain titles, prose, bulleted list, plaintext &mdash; the five tested formats.</div>
+      <div class="paper-ref"><b>Paper &sect;5.2 &mdash; Formatting &amp; Framing.</b> Table&nbsp;2 (tab:format_framing_sig).</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -203,7 +208,8 @@
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18"/><path d="M16 3v18"/></svg>
       </div>
       <div class="label">Framing</div>
-      <div class="desc">Role persona and general-task line &mdash; tested by ablation.</div>
+      <div class="desc">Role persona and general-task line &mdash; tested by ablation on rich and minimal prompts.</div>
+      <div class="paper-ref"><b>Paper &sect;5.2 &mdash; Formatting &amp; Framing.</b> Integrated in Table&nbsp;2.</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -212,7 +218,8 @@
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="17.5" x2="21" y2="17.5"/><line x1="17.5" y1="14" x2="17.5" y2="21"/></svg>
       </div>
       <div class="label">Examples ($n$-shot)</div>
-      <div class="desc">0-shot vs. the same prompt with worked examples appended.</div>
+      <div class="desc">0-shot vs. the same prompt with the codebook's worked examples appended.</div>
+      <div class="paper-ref"><b>Paper &sect;5.3 &mdash; Results: Examples.</b> Table&nbsp;3 (tab:gpt54_examples).</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -222,6 +229,7 @@
       </div>
       <div class="label">Example formatting</div>
       <div class="desc">The same worked examples in five styles: markdown, XML, delimiter, arrow, multi-turn.</div>
+      <div class="paper-ref"><b>Appendix&nbsp;D.4 &mdash; Example Format.</b> Table&nbsp;A6 (tab:shot_format_sig).</div>
       <div class="badge">Interactive</div>
     </a>
 
@@ -231,6 +239,7 @@
       </div>
       <div class="label">Verbose &amp; noise</div>
       <div class="desc">Verbatim sections alongside verbose elaborations and matched-length noise.</div>
+      <div class="paper-ref"><b>Appendix&nbsp;F &mdash; Information Fidelity</b> (also &sect;6 discussion). Figs.&nbsp;A10&ndash;A11.</div>
       <div class="badge">Interactive</div>
     </a>
   </div>
@@ -242,13 +251,14 @@
         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
       </div>
       <div class="label">Example items</div>
-      <div class="desc">Real subject text from each task with GPT&nbsp;5.4's classification &mdash; easy and hard cases.</div>
+      <div class="desc">Real subject text from each task with GPT&nbsp;5.4's classification &mdash; easy and hard cases side by side.</div>
+      <div class="paper-ref"><b>Appendix&nbsp;D.2 &mdash; Example Counts by Label.</b> Table&nbsp;A4 (tab:app_example_counts); human-rater accuracy 82&ndash;88%.</div>
       <div class="badge">Interactive</div>
     </a>
   </div>
 
   <footer>
-    <span class="id">Using LLMs for Classification of Text Messages from Experiments</span>
+    <span class="id">Much Ado about Prompting &middot; LLM Classification of Text Messages from Experiments</span>
   </footer>
 </div>
 </body>
